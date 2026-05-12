@@ -30,8 +30,8 @@ describe("PrintPreview", () => {
     const canvas = screen.getByTestId("print-canvas") as HTMLCanvasElement;
     const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
     vi.runAllTimers();
-    // vitest-canvas-mock tracks calls — fillRect should have been called for substrate
-    expect(ctx.fillRect).toHaveBeenCalled();
+    // Full-canvas substrate rect must be the first fillRect call
+    expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, 920, 420);
     vi.useRealTimers();
   });
 });

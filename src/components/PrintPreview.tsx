@@ -103,8 +103,10 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    let cancelled = false;
 
     const frameId = requestAnimationFrame(() => {
+      if (cancelled) return;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
@@ -201,7 +203,7 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
       }
     });
 
-    return () => cancelAnimationFrame(frameId);
+    return () => { cancelled = true; cancelAnimationFrame(frameId); };
   }, [settings, outcome]);
 
   return (
