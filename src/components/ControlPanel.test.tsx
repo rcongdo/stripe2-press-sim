@@ -72,4 +72,17 @@ describe("ControlPanel — registration dpad", () => {
       expect.closeTo(createInitialSettings(starterJob).registration.cyanY - 0.1, 5),
     );
   });
+
+  it("routes nudge to the correct key when a non-default color is selected", () => {
+    const onRegistrationChange = vi.fn();
+    render(<ControlPanel {...makeProps({ onRegistrationChange })} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /magenta/i }));
+    fireEvent.click(screen.getByRole("button", { name: /right/i }));
+
+    expect(onRegistrationChange).toHaveBeenCalledWith(
+      "magentaX",
+      expect.closeTo(createInitialSettings(starterJob).registration.magentaX + 0.1, 5),
+    );
+  });
 });

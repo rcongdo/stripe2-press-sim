@@ -45,7 +45,8 @@ export function ControlPanel({
   const [selectedColor, setSelectedColor] = useState<ColorName>("cyan");
 
   const currentPreset =
-    aniloxPresets.find((p) => p.volume === settings.aniloxVolume) ?? aniloxPresets[4];
+    aniloxPresets.find((p) => p.volume === settings.aniloxVolume) ??
+    aniloxPresets.find((p) => p.id === "heavy")!;
 
   function nudge(axis: "x" | "y", delta: number) {
     const key = colorKeys[selectedColor][axis];
@@ -65,7 +66,6 @@ export function ControlPanel({
       </div>
 
       <div className="control-group">
-        <h3>Anilox roll</h3>
         <label className="control anilox-select" htmlFor="anilox-select">
           <span>Anilox roll</span>
           <select
@@ -113,7 +113,7 @@ export function ControlPanel({
       <div className="control-group">
         <h3>Registration</h3>
         <div className="reg-colors">
-          {(["cyan", "magenta", "yellow", "black"] as ColorName[]).map((color) => (
+          {(Object.keys(colorKeys) as ColorName[]).map((color) => (
             <button
               key={color}
               type="button"

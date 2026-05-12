@@ -22,6 +22,7 @@ export default function App() {
   }
 
   function handleAniloxPresetChange(volume: number, lineScreen: number) {
+    // Values come from a fixed preset list — no clamping needed.
     setSettings((current) => ({
       ...current,
       aniloxVolume: volume,

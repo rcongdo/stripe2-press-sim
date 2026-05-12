@@ -318,6 +318,7 @@ h3 {
   font-size: 1.1rem;
   display: grid;
   place-items: center;
+  cursor: pointer;
 }
 
 .reg-dpad__center {
