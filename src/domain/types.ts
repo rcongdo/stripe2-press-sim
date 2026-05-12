@@ -28,6 +28,13 @@ export type SettingRange = {
   label: string;
 };
 
+export type AniloxPreset = {
+  id: string;
+  label: string;
+  lineScreen: number;
+  volume: number;
+};
+
 export type Registration = Record<RegistrationKey, number>;
 
 export type PressSettings = Record<PressSettingKey, number> & {
