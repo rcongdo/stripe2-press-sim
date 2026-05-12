@@ -6,7 +6,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
-    setupFiles: ["@testing-library/jest-dom/vitest"],
+    setupFiles: ["vitest-canvas-mock", "@testing-library/jest-dom/vitest"],
     exclude: ["tests/e2e/**", "node_modules/**"],
   },
 });
