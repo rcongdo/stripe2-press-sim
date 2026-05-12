@@ -21,13 +21,18 @@ export default function App() {
     setSettings((current) => updateSetting(starterJob, current, key, value));
   }
 
+  function handleAniloxPresetChange(volume: number, lineScreen: number) {
+    setSettings((current) => ({
+      ...current,
+      aniloxVolume: volume,
+      aniloxLineScreen: lineScreen,
+    }));
+  }
+
   function handleRegistrationChange(key: RegistrationKey, value: number) {
     setSettings((current) => ({
       ...current,
-      registration: {
-        ...current.registration,
-        [key]: value,
-      },
+      registration: { ...current.registration, [key]: value },
     }));
   }
 
@@ -62,6 +67,7 @@ export default function App() {
           job={starterJob}
           settings={settings}
           onSettingChange={handleSettingChange}
+          onAniloxPresetChange={handleAniloxPresetChange}
           onRegistrationChange={handleRegistrationChange}
         />
       </div>

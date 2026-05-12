@@ -1,15 +1,32 @@
+import { useState } from "react";
+import { aniloxPresets } from "../domain/jobs";
 import type { JobPreset, PressSettingKey, PressSettings, RegistrationKey } from "../domain/types";
 
 type ControlPanelProps = {
   job: JobPreset;
   settings: PressSettings;
   onSettingChange: (key: PressSettingKey, value: number) => void;
+  onAniloxPresetChange: (volume: number, lineScreen: number) => void;
   onRegistrationChange: (key: RegistrationKey, value: number) => void;
 };
 
-const settingOrder: PressSettingKey[] = [
-  "aniloxVolume",
-  "aniloxLineScreen",
+type ColorName = "cyan" | "magenta" | "yellow" | "black";
+
+const colorKeys: Record<ColorName, { x: RegistrationKey; y: RegistrationKey }> = {
+  cyan:    { x: "cyanX",    y: "cyanY" },
+  magenta: { x: "magentaX", y: "magentaY" },
+  yellow:  { x: "yellowX",  y: "yellowY" },
+  black:   { x: "blackX",   y: "blackY" },
+};
+
+const colorSwatches: Record<ColorName, string> = {
+  cyan:    "#00a7c8",
+  magenta: "#d3266c",
+  yellow:  "#c8a000",
+  black:   "#202124",
+};
+
+const sliderKeys: PressSettingKey[] = [
   "inkViscosity",
   "inkStrength",
   "impression",
@@ -18,23 +35,27 @@ const settingOrder: PressSettingKey[] = [
   "pressSpeed",
 ];
 
-const registrationOrder: RegistrationKey[] = [
-  "cyanX",
-  "cyanY",
-  "magentaX",
-  "magentaY",
-  "yellowX",
-  "yellowY",
-  "blackX",
-  "blackY",
-];
-
 export function ControlPanel({
   job,
   settings,
   onSettingChange,
+  onAniloxPresetChange,
   onRegistrationChange,
 }: ControlPanelProps) {
+  const [selectedColor, setSelectedColor] = useState<ColorName>("cyan");
+
+  const currentPreset =
+    aniloxPresets.find((p) => p.volume === settings.aniloxVolume) ?? aniloxPresets[4];
+
+  function nudge(axis: "x" | "y", delta: number) {
+    const key = colorKeys[selectedColor][axis];
+    const current = settings.registration[key];
+    onRegistrationChange(key, Math.min(2, Math.max(-2, parseFloat((current + delta).toFixed(1)))));
+  }
+
+  const regX = settings.registration[colorKeys[selectedColor].x];
+  const regY = settings.registration[colorKeys[selectedColor].y];
+
   return (
     <aside className="control-panel" aria-label="Press setup controls">
       <div>
@@ -42,9 +63,31 @@ export function ControlPanel({
         <h2>{job.name}</h2>
         <p>{job.description}</p>
       </div>
+
+      <div className="control-group">
+        <h3>Anilox roll</h3>
+        <label className="control anilox-select" htmlFor="anilox-select">
+          <span>Anilox roll</span>
+          <select
+            id="anilox-select"
+            value={currentPreset.id}
+            onChange={(e) => {
+              const preset = aniloxPresets.find((p) => p.id === e.target.value);
+              if (preset) onAniloxPresetChange(preset.volume, preset.lineScreen);
+            }}
+          >
+            {aniloxPresets.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       <div className="control-group">
         <h3>Press settings</h3>
-        {settingOrder.map((key) => {
+        {sliderKeys.map((key) => {
           const range = job.ranges[key];
           return (
             <label className="control" key={key}>
@@ -60,30 +103,42 @@ export function ControlPanel({
                 max={range.max}
                 step={range.step}
                 value={settings[key]}
-                onChange={(event) => onSettingChange(key, Number(event.target.value))}
+                onChange={(e) => onSettingChange(key, Number(e.target.value))}
               />
             </label>
           );
         })}
       </div>
+
       <div className="control-group">
         <h3>Registration</h3>
-        {registrationOrder.map((key) => (
-          <label className="control" key={key}>
-            <span>
-              {key}
-              <strong>{settings.registration[key].toFixed(1)} mil</strong>
-            </span>
-            <input
-              type="range"
-              min="-2"
-              max="2"
-              step="0.1"
-              value={settings.registration[key]}
-              onChange={(event) => onRegistrationChange(key, Number(event.target.value))}
-            />
-          </label>
-        ))}
+        <div className="reg-colors">
+          {(["cyan", "magenta", "yellow", "black"] as ColorName[]).map((color) => (
+            <button
+              key={color}
+              type="button"
+              className={`reg-color-btn${selectedColor === color ? " reg-color-btn--active" : ""}`}
+              style={{ "--swatch": colorSwatches[color] } as React.CSSProperties}
+              onClick={() => setSelectedColor(color)}
+              aria-pressed={selectedColor === color}
+            >
+              {color.charAt(0).toUpperCase() + color.slice(1)}
+            </button>
+          ))}
+        </div>
+        <div className="reg-readout">
+          <span>X: <strong>{regX.toFixed(1)} mil</strong></span>
+          <span>Y: <strong>{regY.toFixed(1)} mil</strong></span>
+        </div>
+        <div className="reg-dpad">
+          <button type="button" className="reg-dpad__btn" aria-label="up"    onClick={() => nudge("y", -0.1)}>↑</button>
+          <div className="reg-dpad__row">
+            <button type="button" className="reg-dpad__btn" aria-label="left"  onClick={() => nudge("x", -0.1)}>←</button>
+            <div className="reg-dpad__center" />
+            <button type="button" className="reg-dpad__btn" aria-label="right" onClick={() => nudge("x",  0.1)}>→</button>
+          </div>
+          <button type="button" className="reg-dpad__btn" aria-label="down"  onClick={() => nudge("y",  0.1)}>↓</button>
+        </div>
       </div>
     </aside>
   );
