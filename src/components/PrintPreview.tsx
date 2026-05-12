@@ -1,17 +1,165 @@
-import type { PressSettings, SimulationOutcome } from "../domain/types";
+import { useEffect, useRef } from "react";
+import type { PressSettings, Registration, SimulationOutcome } from "../domain/types";
 
 type PrintPreviewProps = {
   settings: PressSettings;
   outcome: SimulationOutcome;
 };
 
-function shift(value: number): number {
-  return value * 4;
+const W = 920;
+const H = 420;
+const PITCH = 12;
+const MIL_TO_PX = 4;
+
+type Zone = { x: number; y: number; w: number; h: number };
+
+const ZONES: Zone[] = [
+  { x: 20,  y: 20,  w: 880, h: 78  },  // brand header
+  { x: 20,  y: 106, w: 880, h: 196 },  // product graphic
+  { x: 20,  y: 310, w: 880, h: 52  },  // flavor stripe
+  { x: 20,  y: 370, w: 880, h: 32  },  // nutrition bar
+];
+
+// CMYK ink coverage per zone [header, graphic, flavor, nutrition]
+const COVERAGE: Record<string, [number, number, number, number]> = {
+  C: [0.15, 0.60, 0.05, 0.05],
+  M: [0.20, 0.50, 0.35, 0.05],
+  Y: [0.10, 0.40, 0.70, 0.05],
+  K: [0.85, 0.15, 0.55, 0.70],
+};
+
+const SCREEN_ANGLE: Record<string, number> = {
+  C: (15 * Math.PI) / 180,
+  M: (75 * Math.PI) / 180,
+  Y: 0,
+  K: (45 * Math.PI) / 180,
+};
+
+const INK_COLOR: Record<string, string> = {
+  C: "rgb(0,190,220)",
+  M: "rgb(220,0,150)",
+  Y: "rgb(255,210,0)",
+  K: "rgb(20,20,20)",
+};
+
+const REG_KEYS: Record<string, { x: keyof Registration; y: keyof Registration }> = {
+  C: { x: "cyanX",    y: "cyanY" },
+  M: { x: "magentaX", y: "magentaY" },
+  Y: { x: "yellowX",  y: "yellowY" },
+  K: { x: "blackX",   y: "blackY" },
+};
+
+function drawPlate(
+  ctx: CanvasRenderingContext2D,
+  channel: string,
+  regX: number,
+  regY: number,
+  gain: number,
+  density: number,
+) {
+  const angle = SCREEN_ANGLE[channel];
+  const coverages = COVERAGE[channel];
+
+  ctx.save();
+  ctx.globalCompositeOperation = "multiply";
+  ctx.fillStyle = INK_COLOR[channel];
+  ctx.globalAlpha = Math.min(1, Math.max(0.25, density));
+
+  ZONES.forEach((zone, i) => {
+    const coverage = coverages[i];
+    if (coverage < 0.01) return;
+
+    const radius = PITCH * 0.48 * Math.sqrt(coverage) * (1 + (gain - 0.18) * 1.5);
+    if (radius <= 0) return;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(zone.x, zone.y, zone.w, zone.h);
+    ctx.clip();
+
+    const cx = zone.x + zone.w / 2 + regX;
+    const cy = zone.y + zone.h / 2 + regY;
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+
+    const span = Math.ceil(Math.hypot(zone.w, zone.h) / 2) + PITCH;
+    for (let dx = -span; dx <= span; dx += PITCH) {
+      for (let dy = -span; dy <= span; dy += PITCH) {
+        ctx.beginPath();
+        ctx.arc(dx, dy, Math.max(0.5, radius), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  });
+
+  ctx.restore();
 }
 
 export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
-  const densityOpacity = Math.min(1, Math.max(0.35, outcome.density));
-  const gainScale = 1 + outcome.gain * 0.45;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Substrate background
+    ctx.fillStyle = "#f6f1e8";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#fffdf8";
+    ctx.beginPath();
+    ctx.roundRect(16, 16, W - 32, H - 32, 10);
+    ctx.fill();
+
+    // CMYK plates in standard print order: Y → M → C → K
+    for (const ch of ["Y", "M", "C", "K"]) {
+      const regX = settings.registration[REG_KEYS[ch].x] * MIL_TO_PX;
+      const regY = settings.registration[REG_KEYS[ch].y] * MIL_TO_PX;
+      drawPlate(ctx, ch, regX, regY, outcome.gain, outcome.density);
+    }
+
+    // Pinhole defects — small white voids
+    if (outcome.defects.pinholes > 0) {
+      ctx.save();
+      ctx.globalAlpha = outcome.defects.pinholes / 100;
+      ctx.fillStyle = "#fffdf8";
+      for (let i = 0; i < 24; i++) {
+        ctx.beginPath();
+        ctx.arc(60 + ((i * 37) % 800), 30 + ((i * 53) % 360), 2 + (i % 3), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // Dirty print — horizontal ink slur streaks
+    if (outcome.defects.dirtyPrint > 0) {
+      ctx.save();
+      ctx.globalAlpha = (outcome.defects.dirtyPrint / 100) * 0.4;
+      ctx.fillStyle = "#1a1207";
+      for (let i = 0; i < 28; i++) {
+        ctx.fillRect(30 + ((i * 31) % 860), 22 + ((i * 43) % 376), 3 + (i % 6), 1);
+      }
+      ctx.restore();
+    }
+
+    // Mottle — uneven ink film (radial gradient blotches)
+    if (outcome.defects.mottle > 0) {
+      ctx.save();
+      ctx.globalAlpha = (outcome.defects.mottle / 100) * 0.18;
+      for (let i = 0; i < 12; i++) {
+        const gx = 60 + ((i * 73) % 800);
+        const gy = 30 + ((i * 59) % 360);
+        const gr = ctx.createRadialGradient(gx, gy, 0, gx, gy, 40 + (i % 3) * 12);
+        gr.addColorStop(0, "rgba(20,12,4,0.6)");
+        gr.addColorStop(1, "rgba(20,12,4,0)");
+        ctx.fillStyle = gr;
+        ctx.fillRect(gx - 52, gy - 52, 104, 104);
+      }
+      ctx.restore();
+    }
+  }, [settings, outcome]);
 
   return (
     <section className="print-preview" aria-label="Live print sample">
@@ -19,53 +167,14 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
         <span>Live print sample</span>
         <strong>{outcome.setupQuality}% setup quality</strong>
       </div>
-      <svg viewBox="0 0 920 420" role="img" aria-label="Simulated flexible packaging web">
-        <rect width="920" height="420" rx="18" fill="#f6f1e8" />
-        <rect x="26" y="28" width="868" height="364" rx="10" fill="#fffdf8" />
-        <g opacity={densityOpacity}>
-          <g data-testid="cyan-layer" transform={`translate(${shift(settings.registration.cyanX)} ${shift(settings.registration.cyanY)})`}>
-            <rect x="70" y="70" width="260" height="112" fill="#0088b8" />
-            <circle cx="660" cy="150" r={72 * gainScale} fill="#00a7c8" opacity="0.82" />
-          </g>
-          <g data-testid="magenta-layer" transform={`translate(${shift(settings.registration.magentaX)} ${shift(settings.registration.magentaY)})`}>
-            <rect x="132" y="106" width="250" height="112" fill="#c83564" opacity="0.85" />
-            <circle cx="704" cy="190" r={58 * gainScale} fill="#d3266c" opacity="0.78" />
-          </g>
-          <g data-testid="yellow-layer" transform={`translate(${shift(settings.registration.yellowX)} ${shift(settings.registration.yellowY)})`}>
-            <rect x="92" y="206" width="330" height="86" fill="#f2c53d" opacity="0.88" />
-            <circle cx="618" cy="222" r={64 * gainScale} fill="#ffd84d" opacity="0.82" />
-          </g>
-          <g data-testid="black-layer" transform={`translate(${shift(settings.registration.blackX)} ${shift(settings.registration.blackY)})`}>
-            <text x="78" y="342" fontFamily="Arial, sans-serif" fontSize="38" fontWeight="800" fill="#202124">
-              CRISP FLEXO
-            </text>
-            <path d="M508 78h270M508 112h208M508 146h238M508 322h285" stroke="#202124" strokeWidth={6 * gainScale} strokeLinecap="round" />
-            <g fill="none" stroke="#202124" strokeWidth="3">
-              <circle cx="820" cy="76" r="18" />
-              <line x1="802" y1="76" x2="838" y2="76" />
-              <line x1="820" y1="58" x2="820" y2="94" />
-            </g>
-          </g>
-        </g>
-        <g data-testid="pinholes" opacity={String(outcome.defects.pinholes / 100)}>
-          {Array.from({ length: 18 }).map((_, index) => (
-            <circle
-              key={index}
-              cx={120 + ((index * 43) % 690)}
-              cy={82 + ((index * 67) % 246)}
-              r={3 + (index % 3)}
-              fill="#fffdf8"
-            />
-          ))}
-        </g>
-        <g opacity={outcome.defects.dirtyPrint / 100}>
-          <rect x="46" y="48" width="832" height="324" fill="#292521" opacity="0.12" />
-          <path d="M80 58c180 48 420-18 762 34" stroke="#342a20" strokeWidth="18" opacity="0.2" fill="none" />
-        </g>
-        <g opacity={outcome.defects.edgeSquash / 100}>
-          <rect x="62" y="62" width="320" height="170" fill="none" stroke="#1c1a18" strokeWidth="18" opacity="0.22" />
-        </g>
-      </svg>
+      <canvas
+        ref={canvasRef}
+        width={W}
+        height={H}
+        style={{ width: "100%", display: "block" }}
+        aria-label="Simulated flexible packaging web"
+        data-testid="print-canvas"
+      />
     </section>
   );
 }

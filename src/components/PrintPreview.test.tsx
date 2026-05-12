@@ -6,17 +6,14 @@ import { simulatePress } from "../simulation/engine";
 import { PrintPreview } from "./PrintPreview";
 
 describe("PrintPreview", () => {
-  it("renders a live print sample with defect overlays", () => {
+  it("renders the live print sample section with a canvas", () => {
     const settings = createInitialSettings(starterJob);
     const outcome = simulatePress(starterJob, settings);
 
     render(<PrintPreview settings={settings} outcome={outcome} />);
 
     expect(screen.getByLabelText("Live print sample")).toBeInTheDocument();
-    expect(screen.getByTestId("cyan-layer")).toHaveAttribute("transform");
-    expect(screen.getByTestId("pinholes")).toHaveAttribute(
-      "opacity",
-      String(outcome.defects.pinholes / 100),
-    );
+    expect(screen.getByTestId("print-canvas")).toBeInTheDocument();
+    expect(screen.getByText(`${outcome.setupQuality}% setup quality`)).toBeInTheDocument();
   });
 });
