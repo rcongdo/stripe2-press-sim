@@ -28,8 +28,16 @@ export type SettingRange = {
   label: string;
 };
 
+export type AniloxPresetId =
+  | "ultra-fine"
+  | "fine"
+  | "standard"
+  | "medium-heavy"
+  | "heavy"
+  | "very-heavy";
+
 export type AniloxPreset = {
-  id: string;
+  id: AniloxPresetId;
   label: string;
   lineScreen: number;
   volume: number;
