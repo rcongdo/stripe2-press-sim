@@ -49,7 +49,7 @@ export function MetricsStrip({ job, outcome }: MetricsStripProps) {
             </tr>
           </thead>
           <tbody>
-            {activeChannels.map(ch => {
+            {activeChannels.slice(0, 5).map(ch => {
               const sctv = Math.round((outcome.channelGain[ch.id] ?? 0) * 100);
               const sctvStr = sctv > 0 ? `+${sctv}%` : `${sctv}%`;
               return (
