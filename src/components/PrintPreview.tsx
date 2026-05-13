@@ -172,11 +172,14 @@ function drawPlate(
   ctx.fillStyle = INK_COLOR[channel];
 
   if (!showDots) {
-    // 1× continuous-tone: solid zone fills scaled by coverage, no registration offset applied
+    // 1× continuous-tone: light tint overlay — density scaled down so four
+    // multiply layers don't obliterate the artwork beneath.
+    // Density ~1.4 → plateAlpha ~0.35; heavier ink raises it toward 0.5.
+    const plateAlpha = Math.min(0.5, density / 4);
     ZONES.forEach((zone, i) => {
       const coverage = coverages[i];
       if (coverage < 0.01) return;
-      ctx.globalAlpha = baseAlpha * coverage;
+      ctx.globalAlpha = plateAlpha * coverage;
       ctx.fillRect(pouchX + zone.x, zone.y, zone.w, zone.h);
     });
     ctx.restore();
