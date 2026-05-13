@@ -5,7 +5,7 @@ import { MetricsStrip } from "./components/MetricsStrip";
 import { PrintPreview } from "./components/PrintPreview";
 import { ScoreModal } from "./components/ScoreModal";
 import { starterJob } from "./domain/jobs";
-import { createInitialSettings, updateInkChannelSetting, updateSetting } from "./domain/settings";
+import { createInitialSettings, createPerfectSettings, updateInkChannelSetting, updateSetting } from "./domain/settings";
 import type { InkChannelKey, InkChannelSettingKey, PressSettingKey, RegistrationKey, ScoreSummary } from "./domain/types";
 import { simulatePress } from "./simulation/engine";
 import { filterCoaching, scoreRun, type TrainingMode } from "./simulation/scoring";
@@ -19,15 +19,6 @@ export default function App() {
 
   function handleSettingChange(key: PressSettingKey, value: number) {
     setSettings((current) => updateSetting(starterJob, current, key, value));
-  }
-
-  function handleAniloxPresetChange(volume: number, lineScreen: number) {
-    // Values come from a fixed preset list — no clamping needed.
-    setSettings((current) => ({
-      ...current,
-      aniloxVolume: volume,
-      aniloxLineScreen: lineScreen,
-    }));
   }
 
   function handleRegistrationChange(key: RegistrationKey, value: number) {
@@ -46,6 +37,11 @@ export default function App() {
     setScore(null);
   }
 
+  function makePerfect() {
+    setSettings(createPerfectSettings(starterJob));
+    setScore(null);
+  }
+
   return (
     <main className="app-shell">
       <header className="app-header">
@@ -56,6 +52,9 @@ export default function App() {
         <div className="header-actions">
           <button type="button" className="secondary-button" onClick={resetJob}>
             Reset job
+          </button>
+          <button type="button" className="secondary-button" onClick={makePerfect}>
+            Make perfect
           </button>
           <button type="button" className="primary-button" onClick={() => setScore(scoreRun(outcome))}>
             Finish run
@@ -72,7 +71,6 @@ export default function App() {
           job={starterJob}
           settings={settings}
           onSettingChange={handleSettingChange}
-          onAniloxPresetChange={handleAniloxPresetChange}
           onRegistrationChange={handleRegistrationChange}
           onInkChannelChange={handleInkChannelChange}
         />

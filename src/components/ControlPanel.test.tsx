@@ -9,7 +9,6 @@ function makeProps(overrides: Partial<Parameters<typeof ControlPanel>[0]> = {}) 
     job: starterJob,
     settings: createInitialSettings(starterJob),
     onSettingChange: vi.fn(),
-    onAniloxPresetChange: vi.fn(),
     onRegistrationChange: vi.fn(),
     onInkChannelChange: vi.fn(),
     ...overrides,
@@ -17,23 +16,20 @@ function makeProps(overrides: Partial<Parameters<typeof ControlPanel>[0]> = {}) 
 }
 
 describe("ControlPanel — anilox dropdown", () => {
-  it("renders a single anilox select instead of two sliders", () => {
+  it("renders an anilox roll select in the ink section", () => {
     render(<ControlPanel {...makeProps()} />);
-
     expect(screen.getByLabelText("Anilox roll")).toBeInTheDocument();
     expect(screen.queryByLabelText("Anilox volume")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Anilox line screen")).not.toBeInTheDocument();
   });
 
-  it("calls onAniloxPresetChange with matched volume and lineScreen when selection changes", () => {
-    const onAniloxPresetChange = vi.fn();
-    render(<ControlPanel {...makeProps({ onAniloxPresetChange })} />);
-
+  it("calls onInkChannelChange with channel C and aniloxVolume when selection changes", () => {
+    const onInkChannelChange = vi.fn();
+    render(<ControlPanel {...makeProps({ onInkChannelChange })} />);
     fireEvent.change(screen.getByLabelText("Anilox roll"), {
       target: { value: "standard" },
     });
-
-    expect(onAniloxPresetChange).toHaveBeenCalledWith(3.2, 1000);
+    expect(onInkChannelChange).toHaveBeenCalledWith("C", "aniloxVolume", 3.2);
   });
 });
 

@@ -1,8 +1,6 @@
 export type SubstrateId = "pet-film" | "opp-film" | "paper-laminate";
 
 export type PressSettingKey =
-  | "aniloxVolume"
-  | "aniloxLineScreen"
   | "webTension"
   | "dryerTemperature"
   | "pressSpeed";
@@ -20,6 +18,7 @@ export type RegistrationKey =
 export type InkChannelKey = "C" | "M" | "Y" | "K";
 
 export type InkChannelSettings = {
+  aniloxVolume: number;
   viscosity: number;
   strength: number;
   impression: number;
@@ -76,6 +75,7 @@ export type JobPreset = {
   substrateOptions: SubstrateId[];
   ranges: Record<PressSettingKey, SettingRange>;
   inkChannelRanges: {
+    aniloxVolume: SettingRange;
     viscosity: SettingRange;
     strength: SettingRange;
     impression: SettingRange;

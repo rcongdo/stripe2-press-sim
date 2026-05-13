@@ -24,7 +24,7 @@ const POUCH_H   = 400 * SCALE;  // 1600
 const POUCH_TOP =  10 * SCALE;  // 40
 const POUCH_ORIGINS = [10 * SCALE, 310 * SCALE, 610 * SCALE] as const; // [40,1240,2440]
 
-const ZOOM_LEVELS = [0.5, 1, 2, 4] as const;
+const ZOOM_LEVELS = [1, 4] as const;
 type ZoomLevel = (typeof ZOOM_LEVELS)[number];
 
 type Zone = { x: number; y: number; w: number; h: number };
@@ -161,14 +161,30 @@ function drawPlate(
   regY: number,
   gain: number,
   density: number,
+  showDots: boolean,
 ) {
   const angle = SCREEN_ANGLE[channel];
   const coverages = COVERAGE[channel];
+  const baseAlpha = Math.min(1, Math.max(MIN_PLATE_ALPHA, density));
 
   ctx.save();
   ctx.globalCompositeOperation = "multiply";
   ctx.fillStyle = INK_COLOR[channel];
-  ctx.globalAlpha = Math.min(1, Math.max(MIN_PLATE_ALPHA, density));
+
+  if (!showDots) {
+    // 1× continuous-tone: solid zone fills scaled by coverage, no registration offset applied
+    ZONES.forEach((zone, i) => {
+      const coverage = coverages[i];
+      if (coverage < 0.01) return;
+      ctx.globalAlpha = baseAlpha * coverage;
+      ctx.fillRect(pouchX + zone.x, zone.y, zone.w, zone.h);
+    });
+    ctx.restore();
+    return;
+  }
+
+  // 4× halftone dot grid
+  ctx.globalAlpha = baseAlpha;
 
   // Single pouch-level clip with registration bleed — lets misaligned dots
   // appear at artwork edges instead of being cut off by per-zone clipping
@@ -210,6 +226,7 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [zoom, setZoom] = useState<ZoomLevel>(1);
   const zoomIdx = ZOOM_LEVELS.indexOf(zoom);
+  const showDots = zoom === 4;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -239,7 +256,7 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
         for (const ch of ["Y", "M", "C", "K"] as const) {
           const regX = settings.registration[REG_KEYS[ch].x] * MIL_TO_PX;
           const regY = settings.registration[REG_KEYS[ch].y] * MIL_TO_PX;
-          drawPlate(ctx, ch, pouchX, regX, regY, outcome.channelGain[ch], outcome.channelDensity[ch]);
+          drawPlate(ctx, ch, pouchX, regX, regY, outcome.channelGain[ch], outcome.channelDensity[ch], showDots);
         }
       }
 
@@ -339,7 +356,7 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
     });
 
     return () => { cancelled = true; cancelAnimationFrame(frameId); };
-  }, [settings, outcome]);
+  }, [settings, outcome, showDots]);
 
   return (
     <section className="print-preview" aria-label="Live print sample">

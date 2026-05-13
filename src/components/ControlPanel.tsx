@@ -13,12 +13,13 @@ type ControlPanelProps = {
   job: JobPreset;
   settings: PressSettings;
   onSettingChange: (key: PressSettingKey, value: number) => void;
-  onAniloxPresetChange: (volume: number, lineScreen: number) => void;
   onRegistrationChange: (key: RegistrationKey, value: number) => void;
   onInkChannelChange: (channel: InkChannelKey, key: InkChannelSettingKey, value: number) => void;
 };
 
 type ColorName = "cyan" | "magenta" | "yellow" | "black";
+
+const colorOrder: ColorName[] = ["cyan", "magenta", "yellow", "black"];
 
 const colorKeys: Record<ColorName, { x: RegistrationKey; y: RegistrationKey }> = {
   cyan:    { x: "cyanX",    y: "cyanY" },
@@ -40,21 +41,21 @@ const inkChannelMap: Record<ColorName, InkChannelKey> = {
 
 const sliderKeys: PressSettingKey[] = ["webTension", "dryerTemperature", "pressSpeed"];
 
-const inkSettingKeys: InkChannelSettingKey[] = ["viscosity", "strength", "impression"];
+const inkSliderKeys: InkChannelSettingKey[] = ["viscosity", "strength", "impression"];
 
 export function ControlPanel({
   job,
   settings,
   onSettingChange,
-  onAniloxPresetChange,
   onRegistrationChange,
   onInkChannelChange,
 }: ControlPanelProps) {
   const [selectedColor, setSelectedColor] = useState<ColorName>("cyan");
   const [selectedInkColor, setSelectedInkColor] = useState<ColorName>("cyan");
 
-  const currentPreset =
-    aniloxPresets.find((p) => p.volume === settings.aniloxVolume) ??
+  const inkCh = inkChannelMap[selectedInkColor];
+  const inkCurrentPreset =
+    aniloxPresets.find((p) => p.volume === settings.inkChannels[inkCh].aniloxVolume) ??
     aniloxPresets.find((p) => p.id === "heavy")!;
 
   function nudge(axis: "x" | "y", delta: number) {
@@ -72,26 +73,6 @@ export function ControlPanel({
         <p className="panel-label">Job</p>
         <h2>{job.name}</h2>
         <p>{job.description}</p>
-      </div>
-
-      <div className="control-group">
-        <label className="control anilox-select" htmlFor="anilox-select">
-          <span>Anilox roll</span>
-          <select
-            id="anilox-select"
-            value={currentPreset.id}
-            onChange={(e) => {
-              const preset = aniloxPresets.find((p) => p.id === e.target.value);
-              if (preset) onAniloxPresetChange(preset.volume, preset.lineScreen);
-            }}
-          >
-            {aniloxPresets.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
 
       <div className="control-group">
@@ -122,7 +103,7 @@ export function ControlPanel({
       <div className="control-group">
         <h3>Ink</h3>
         <div className="reg-colors" role="group" aria-label="Ink color">
-          {(Object.keys(colorKeys) as ColorName[]).map((color) => (
+          {colorOrder.map((color) => (
             <button
               key={color}
               type="button"
@@ -135,15 +116,31 @@ export function ControlPanel({
             </button>
           ))}
         </div>
-        {inkSettingKeys.map((key) => {
+        <label className="control anilox-select" htmlFor="anilox-channel-select">
+          <span>Anilox roll</span>
+          <select
+            id="anilox-channel-select"
+            value={inkCurrentPreset.id}
+            onChange={(e) => {
+              const preset = aniloxPresets.find((p) => p.id === e.target.value);
+              if (preset) onInkChannelChange(inkCh, "aniloxVolume", preset.volume);
+            }}
+          >
+            {aniloxPresets.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {inkSliderKeys.map((key) => {
           const range = job.inkChannelRanges[key];
-          const ch = inkChannelMap[selectedInkColor];
           return (
             <label className="control" key={key}>
               <span>
                 {range.label}
                 <strong>
-                  {settings.inkChannels[ch][key]} {range.unit}
+                  {settings.inkChannels[inkCh][key]} {range.unit}
                 </strong>
               </span>
               <input
@@ -151,9 +148,9 @@ export function ControlPanel({
                 min={range.min}
                 max={range.max}
                 step={range.step}
-                value={settings.inkChannels[ch][key]}
+                value={settings.inkChannels[inkCh][key]}
                 aria-label={range.label}
-                onChange={(e) => onInkChannelChange(ch, key, Number(e.target.value))}
+                onChange={(e) => onInkChannelChange(inkCh, key, Number(e.target.value))}
               />
             </label>
           );
@@ -163,7 +160,7 @@ export function ControlPanel({
       <div className="control-group">
         <h3>Registration</h3>
         <div className="reg-colors" role="group" aria-label="Registration color">
-          {(Object.keys(colorKeys) as ColorName[]).map((color) => (
+          {colorOrder.map((color) => (
             <button
               key={color}
               type="button"

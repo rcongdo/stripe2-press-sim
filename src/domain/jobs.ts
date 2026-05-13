@@ -15,16 +15,15 @@ export const starterJob: JobPreset = {
   description: "Four-color process setup on PET film for a flexible packaging job.",
   substrateOptions: ["pet-film", "opp-film", "paper-laminate"],
   ranges: {
-    aniloxVolume:     { min: 1.8, max: 5.5,  step: 0.1, unit: "BCM", label: "Anilox volume" },
-    aniloxLineScreen: { min: 700, max: 1400, step: 50,  unit: "lpi", label: "Anilox line screen" },
     webTension:       { min: 20,  max: 80,   step: 1,   unit: "pli", label: "Web tension" },
     dryerTemperature: { min: 80,  max: 180,  step: 5,   unit: "F",   label: "Dryer temperature" },
     pressSpeed:       { min: 300, max: 1200, step: 10,  unit: "fpm", label: "Press speed" },
   },
   inkChannelRanges: {
-    viscosity:  { min: 18, max: 45,  step: 1, unit: "s",  label: "Viscosity"  },
-    strength:   { min: 70, max: 120, step: 1, unit: "%",  label: "Strength"   },
-    impression: { min: 0,  max: 100, step: 1, unit: "%",  label: "Impression" },
+    aniloxVolume: { min: 1.8, max: 5.5, step: 0.1, unit: "BCM", label: "Anilox volume" },
+    viscosity:    { min: 18,  max: 45,  step: 1,   unit: "s",   label: "Viscosity"  },
+    strength:     { min: 70,  max: 120, step: 1,   unit: "%",   label: "Strength"   },
+    impression:   { min: 0,   max: 100, step: 1,   unit: "%",   label: "Impression" },
   },
   target: {
     density: 1,
@@ -38,16 +37,14 @@ export const starterJob: JobPreset = {
   },
   initialSettings: {
     substrate: "pet-film",
-    aniloxVolume: 4.5,
-    aniloxLineScreen: 800,
     webTension: 38,
     dryerTemperature: 120,
     pressSpeed: 760,
     inkChannels: {
-      C: { viscosity: 31, strength: 104, impression: 67 },
-      M: { viscosity: 31, strength: 104, impression: 67 },
-      Y: { viscosity: 31, strength: 104, impression: 67 },
-      K: { viscosity: 31, strength: 104, impression: 67 },
+      C: { aniloxVolume: 4.5, viscosity: 31, strength: 104, impression: 67 },
+      M: { aniloxVolume: 4.5, viscosity: 31, strength: 104, impression: 67 },
+      Y: { aniloxVolume: 4.5, viscosity: 31, strength: 104, impression: 67 },
+      K: { aniloxVolume: 4.5, viscosity: 31, strength: 104, impression: 67 },
     },
     registration: {
       cyanX: -1.4,

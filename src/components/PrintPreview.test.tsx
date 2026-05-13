@@ -41,29 +41,20 @@ describe("PrintPreview", () => {
     expect(screen.getByText("1×")).toBeInTheDocument();
   });
 
-  it("steps to 2× when zoom in is clicked", () => {
+  it("steps to 4× when zoom in is clicked once", () => {
     render(<PrintPreview settings={defaultSettings} outcome={outcome} />);
     fireEvent.click(screen.getByLabelText("Zoom in"));
-    expect(screen.getByTestId("print-canvas")).toHaveStyle({ width: "1840px" });
-    expect(screen.getByText("2×")).toBeInTheDocument();
+    expect(screen.getByTestId("print-canvas")).toHaveStyle({ width: "3680px" });
+    expect(screen.getByText("4×")).toBeInTheDocument();
   });
 
-  it("steps to 0.5× when zoom out is clicked", () => {
+  it("disables zoom out at minimum zoom (1×)", () => {
     render(<PrintPreview settings={defaultSettings} outcome={outcome} />);
-    fireEvent.click(screen.getByLabelText("Zoom out"));
-    expect(screen.getByTestId("print-canvas")).toHaveStyle({ width: "460px" });
-    expect(screen.getByText("0.5×")).toBeInTheDocument();
-  });
-
-  it("disables zoom out at minimum zoom (0.5×)", () => {
-    render(<PrintPreview settings={defaultSettings} outcome={outcome} />);
-    fireEvent.click(screen.getByLabelText("Zoom out"));
     expect(screen.getByLabelText("Zoom out")).toBeDisabled();
   });
 
   it("disables zoom in at maximum zoom (4×)", () => {
     render(<PrintPreview settings={defaultSettings} outcome={outcome} />);
-    fireEvent.click(screen.getByLabelText("Zoom in")); // 2×
     fireEvent.click(screen.getByLabelText("Zoom in")); // 4×
     expect(screen.getByLabelText("Zoom in")).toBeDisabled();
   });
@@ -71,15 +62,7 @@ describe("PrintPreview", () => {
   it("never sets pixelated image rendering — 4× native scale handles dot visibility", () => {
     render(<PrintPreview settings={defaultSettings} outcome={outcome} />);
     const canvas = screen.getByTestId("print-canvas") as HTMLCanvasElement;
-    fireEvent.click(screen.getByLabelText("Zoom in")); // 2×
-    expect(canvas.style.imageRendering).not.toBe("pixelated");
-  });
-
-  it("reaches 4× zoom (canvas CSS width 3680px) after two zoom in clicks", () => {
-    render(<PrintPreview settings={defaultSettings} outcome={outcome} />);
-    fireEvent.click(screen.getByLabelText("Zoom in")); // 2×
     fireEvent.click(screen.getByLabelText("Zoom in")); // 4×
-    expect(screen.getByTestId("print-canvas")).toHaveStyle({ width: "3680px" });
-    expect(screen.getByText("4×")).toBeInTheDocument();
+    expect(canvas.style.imageRendering).not.toBe("pixelated");
   });
 });
