@@ -1,11 +1,14 @@
 import type {
   CoachingMessage,
   DefectSeverity,
+  InkChannelKey,
   JobPreset,
   PressSettings,
   Registration,
   SimulationOutcome,
 } from "../domain/types";
+
+const INK_CHANNELS: InkChannelKey[] = ["C", "M", "Y", "K"];
 
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
@@ -26,29 +29,59 @@ function toSeverity(value: number): number {
 }
 
 export function simulatePress(job: JobPreset, settings: PressSettings): SimulationOutcome {
-  const impressionHigh = clamp01((settings.impression - job.target.impression) / 42);
-  const impressionLow = clamp01((job.target.impression - settings.impression) / 38);
   const aniloxLoad = settings.aniloxVolume / job.target.aniloxVolume;
-  const viscosityLoad = settings.inkViscosity / job.target.inkViscosity;
-  const inkStrengthLoad = settings.inkStrength / 100;
   const speedLoad = settings.pressSpeed / job.target.speed;
   const dryerCapacity = clamp01((settings.dryerTemperature - 80) / 100);
   const tensionError = scale(settings.webTension, job.target.tension, 34);
   const registerError = registrationMagnitude(settings.registration);
 
-  const density = Math.max(
-    0.35,
-    1 * aniloxLoad * inkStrengthLoad * (1 - impressionLow * 0.42) + impressionHigh * 0.08,
+  // Per-channel density and gain
+  const channelDensity = {} as Record<InkChannelKey, number>;
+  const channelGain = {} as Record<InkChannelKey, number>;
+
+  for (const ch of INK_CHANNELS) {
+    const ink = settings.inkChannels[ch];
+    const impressionHighCh = clamp01((ink.impression - job.target.impression) / 42);
+    const impressionLowCh  = clamp01((job.target.impression - ink.impression) / 38);
+    const inkStrengthLoadCh = ink.strength / 100;
+    const viscosityLoadCh   = ink.viscosity / job.target.inkViscosity;
+
+    channelDensity[ch] = Number(Math.max(
+      0.35,
+      1 * aniloxLoad * inkStrengthLoadCh * (1 - impressionLowCh * 0.42) + impressionHighCh * 0.08,
+    ).toFixed(2));
+
+    channelGain[ch] = Number(Math.max(
+      0.05,
+      job.target.gain + impressionHighCh * 0.34 + viscosityLoadCh * 0.03,
+    ).toFixed(2));
+  }
+
+  const density = Number(
+    (INK_CHANNELS.reduce((s, ch) => s + channelDensity[ch], 0) / 4).toFixed(2),
   );
-  const gain = Math.max(0.05, job.target.gain + impressionHigh * 0.34 + viscosityLoad * 0.03);
+  const gain = Number(
+    (INK_CHANNELS.reduce((s, ch) => s + channelGain[ch], 0) / 4).toFixed(2),
+  );
+
+  // Global metrics use channel means
+  const meanImpression = INK_CHANNELS.reduce((s, ch) => s + settings.inkChannels[ch].impression, 0) / 4;
+  const meanStrength   = INK_CHANNELS.reduce((s, ch) => s + settings.inkChannels[ch].strength,   0) / 4;
+  const meanViscosity  = INK_CHANNELS.reduce((s, ch) => s + settings.inkChannels[ch].viscosity,  0) / 4;
+
+  const impressionHigh = clamp01((meanImpression - job.target.impression) / 42);
+  const impressionLow  = clamp01((job.target.impression - meanImpression) / 38);
+  const viscosityLoad  = meanViscosity / job.target.inkViscosity;
+  const inkStrengthLoad = meanStrength / 100;
+
   const dryingDemand = clamp01((aniloxLoad * inkStrengthLoad * speedLoad) / 1.8);
-  const dryingRisk = clamp01(dryingDemand - dryerCapacity * job.target.dryingCapacity);
+  const dryingRisk   = clamp01(dryingDemand - dryerCapacity * job.target.dryingCapacity);
 
   const defects: DefectSeverity = {
-    pinholes: toSeverity(impressionLow * 0.9 + scale(settings.aniloxVolume, 2.4, 3.2) * 0.12),
+    pinholes:   toSeverity(impressionLow * 0.9 + scale(settings.aniloxVolume, 2.4, 3.2) * 0.12),
     dirtyPrint: toSeverity(impressionHigh * 0.82 + viscosityLoad * 0.08),
-    mottle: toSeverity(scale(settings.inkViscosity, job.target.inkViscosity, 18) * 0.55 + dryingRisk * 0.28),
-    skips: toSeverity(impressionLow * 0.7 + tensionError * 0.3),
+    mottle:     toSeverity(scale(meanViscosity, job.target.inkViscosity, 18) * 0.55 + dryingRisk * 0.28),
+    skips:      toSeverity(impressionLow * 0.7 + tensionError * 0.3),
     edgeSquash: toSeverity(impressionHigh * 0.92),
   };
 
@@ -102,13 +135,11 @@ export function simulatePress(job: JobPreset, settings: PressSettings): Simulati
     });
   }
 
-  const densityVal = Number(density.toFixed(2));
-  const gainVal = Number(gain.toFixed(2));
   return {
-    density: densityVal,
-    gain: gainVal,
-    channelDensity: { C: densityVal, M: densityVal, Y: densityVal, K: densityVal },
-    channelGain: { C: gainVal, M: gainVal, Y: gainVal, K: gainVal },
+    density,
+    gain,
+    channelDensity,
+    channelGain,
     registerError: Number(registerError.toFixed(2)),
     dryingRisk: Math.round(dryingRisk * 100),
     wasteRate,

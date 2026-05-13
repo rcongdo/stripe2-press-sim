@@ -6,9 +6,11 @@ import { PrintPreview } from "./components/PrintPreview";
 import { ScoreModal } from "./components/ScoreModal";
 import { starterJob } from "./domain/jobs";
 import { createInitialSettings, updateSetting } from "./domain/settings";
-import type { PressSettingKey, RegistrationKey, ScoreSummary } from "./domain/types";
+import type { InkChannelKey, PressSettingKey, RegistrationKey, ScoreSummary } from "./domain/types";
 import { simulatePress } from "./simulation/engine";
 import { filterCoaching, scoreRun, type TrainingMode } from "./simulation/scoring";
+
+const INK_CHANNEL_KEYS: InkChannelKey[] = ["C", "M", "Y", "K"];
 
 export default function App() {
   const [settings, setSettings] = useState(() => createInitialSettings(starterJob));
@@ -18,7 +20,19 @@ export default function App() {
   const coaching = filterCoaching(outcome.coaching, mode);
 
   function handleSettingChange(key: PressSettingKey, value: number) {
-    setSettings((current) => updateSetting(starterJob, current, key, value));
+    setSettings((current) => {
+      const updated = updateSetting(starterJob, current, key, value);
+      // Keep inkChannels in sync when global impression/viscosity/strength sliders are adjusted
+      if (key === "impression" || key === "inkViscosity" || key === "inkStrength") {
+        const channelKey = key === "inkViscosity" ? "viscosity" : key === "inkStrength" ? "strength" : "impression";
+        const inkChannels = { ...updated.inkChannels };
+        for (const ch of INK_CHANNEL_KEYS) {
+          inkChannels[ch] = { ...inkChannels[ch], [channelKey]: updated[key] };
+        }
+        return { ...updated, inkChannels };
+      }
+      return updated;
+    });
   }
 
   function handleAniloxPresetChange(volume: number, lineScreen: number) {

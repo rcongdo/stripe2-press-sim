@@ -5,6 +5,8 @@ import { filterCoaching, scoreRun } from "./scoring";
 const strongOutcome: SimulationOutcome = {
   density: 1,
   gain: 0.18,
+  channelDensity: { C: 1, M: 1, Y: 1, K: 1 },
+  channelGain:    { C: 0.18, M: 0.18, Y: 0.18, K: 0.18 },
   registerError: 0.1,
   dryingRisk: 4,
   wasteRate: 28,
