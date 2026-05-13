@@ -1,4 +1,4 @@
-import type { JobPreset, SimulationOutcome } from "../domain/types";
+import type { ChannelDef, JobPreset, SimulationOutcome } from "../domain/types";
 
 type MetricsStripProps = {
   job: JobPreset;
@@ -11,9 +11,40 @@ function registerStatus(err: number): { label: string; color: string } {
   return              { label: "Bad",  color: "#d63b3b" };
 }
 
+function ChannelTable({ channels, outcome }: { channels: ChannelDef[]; outcome: SimulationOutcome }) {
+  return (
+    <table className="channel-table">
+      <thead>
+        <tr>
+          <th />
+          <th className="ch-col-head">Density</th>
+          <th className="ch-col-head">SCTV</th>
+        </tr>
+      </thead>
+      <tbody>
+        {channels.map(ch => {
+          const sctv = Math.round((outcome.channelGain[ch.id] ?? 0) * 100);
+          const sctvStr = sctv > 0 ? `+${sctv}%` : `${sctv}%`;
+          return (
+            <tr key={ch.id}>
+              <td className="ch-swatch" style={{ color: ch.displayColor }}>
+                {ch.id.length === 1 ? ch.id : ch.id.slice(0, 2).toUpperCase()}
+              </td>
+              <td className="ch-val">{(outcome.channelDensity[ch.id] ?? 0).toFixed(2)}</td>
+              <td className="ch-val">{sctvStr}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
 export function MetricsStrip({ job, outcome }: MetricsStripProps) {
   const reg = registerStatus(outcome.registerError);
-  const activeChannels = job.channels.filter(ch => ch.id in outcome.channelDensity);
+  const channels = job.channels.filter(ch => ch.id in outcome.channelDensity);
+  const first = channels.slice(0, 5);
+  const second = channels.slice(5, 10);
 
   return (
     <section className="metrics-strip" aria-label="Live press metrics">
@@ -40,31 +71,14 @@ export function MetricsStrip({ job, outcome }: MetricsStripProps) {
       </div>
 
       <div className="metric metric--channels">
-        <table className="channel-table">
-          <thead>
-            <tr>
-              <th />
-              <th className="ch-col-head">Density</th>
-              <th className="ch-col-head">SCTV</th>
-            </tr>
-          </thead>
-          <tbody>
-            {activeChannels.slice(0, 5).map(ch => {
-              const sctv = Math.round((outcome.channelGain[ch.id] ?? 0) * 100);
-              const sctvStr = sctv > 0 ? `+${sctv}%` : `${sctv}%`;
-              return (
-                <tr key={ch.id}>
-                  <td className="ch-swatch" style={{ color: ch.displayColor }}>
-                    {ch.id.length === 1 ? ch.id : ch.id.slice(0, 2).toUpperCase()}
-                  </td>
-                  <td className="ch-val">{(outcome.channelDensity[ch.id] ?? 0).toFixed(2)}</td>
-                  <td className="ch-val">{sctvStr}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <ChannelTable channels={first} outcome={outcome} />
       </div>
+
+      {second.length > 0 && (
+        <div className="metric metric--channels">
+          <ChannelTable channels={second} outcome={outcome} />
+        </div>
+      )}
     </section>
   );
 }
