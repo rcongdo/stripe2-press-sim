@@ -51,7 +51,7 @@ export function ControlPanel({
   function nudge(axis: "x" | "y", delta: number) {
     const key = colorKeys[selectedColor][axis];
     const current = settings.registration[key];
-    onRegistrationChange(key, Math.min(2, Math.max(-2, parseFloat((current + delta).toFixed(1)))));
+    onRegistrationChange(key, Math.min(4, Math.max(-4, parseFloat((current + delta).toFixed(1)))));
   }
 
   const regX = settings.registration[colorKeys[selectedColor].x];

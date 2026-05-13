@@ -85,4 +85,23 @@ describe("ControlPanel — registration dpad", () => {
       expect.closeTo(createInitialSettings(starterJob).registration.magentaX + 0.1, 5),
     );
   });
+
+  it("clamps registration nudge at ±4 mil", () => {
+    const onRegistrationChange = vi.fn();
+    render(
+      <ControlPanel
+        {...makeProps({
+          settings: {
+            ...createInitialSettings(starterJob),
+            registration: { ...createInitialSettings(starterJob).registration, cyanX: 4 },
+          },
+          onRegistrationChange,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /right/i }));
+
+    expect(onRegistrationChange).toHaveBeenCalledWith("cyanX", 4); // clamped, not 4.1
+  });
 });
