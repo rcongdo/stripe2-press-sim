@@ -39,6 +39,13 @@ export function simulatePress(job: JobPreset, settings: PressSettings): Simulati
   const channelDensity = {} as Record<InkChannelKey, number>;
   const channelGain = {} as Record<InkChannelKey, number>;
 
+  // Accumulate sums for channel means
+  let sumImpression = 0;
+  let sumStrength = 0;
+  let sumViscosity = 0;
+  let sumDensity = 0;
+  let sumGain = 0;
+
   for (const ch of INK_CHANNELS) {
     const ink = settings.inkChannels[ch];
     const impressionHighCh = clamp01((ink.impression - job.target.impression) / 42);
@@ -55,19 +62,26 @@ export function simulatePress(job: JobPreset, settings: PressSettings): Simulati
       0.05,
       job.target.gain + impressionHighCh * 0.34 + viscosityLoadCh * 0.03,
     ).toFixed(2));
+
+    // Accumulate sums for means
+    sumImpression += ink.impression;
+    sumStrength += ink.strength;
+    sumViscosity += ink.viscosity;
+    sumDensity += channelDensity[ch];
+    sumGain += channelGain[ch];
   }
 
   const density = Number(
-    (INK_CHANNELS.reduce((s, ch) => s + channelDensity[ch], 0) / 4).toFixed(2),
+    (sumDensity / INK_CHANNELS.length).toFixed(2),
   );
   const gain = Number(
-    (INK_CHANNELS.reduce((s, ch) => s + channelGain[ch], 0) / 4).toFixed(2),
+    (sumGain / INK_CHANNELS.length).toFixed(2),
   );
 
   // Global metrics use channel means
-  const meanImpression = INK_CHANNELS.reduce((s, ch) => s + settings.inkChannels[ch].impression, 0) / 4;
-  const meanStrength   = INK_CHANNELS.reduce((s, ch) => s + settings.inkChannels[ch].strength,   0) / 4;
-  const meanViscosity  = INK_CHANNELS.reduce((s, ch) => s + settings.inkChannels[ch].viscosity,  0) / 4;
+  const meanImpression = sumImpression / INK_CHANNELS.length;
+  const meanStrength   = sumStrength / INK_CHANNELS.length;
+  const meanViscosity  = sumViscosity / INK_CHANNELS.length;
 
   const impressionHigh = clamp01((meanImpression - job.target.impression) / 42);
   const impressionLow  = clamp01((job.target.impression - meanImpression) / 38);
