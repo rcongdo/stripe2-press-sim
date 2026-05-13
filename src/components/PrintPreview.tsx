@@ -324,7 +324,7 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
             className="secondary-button zoom-btn"
             aria-label="Zoom out"
             disabled={zoomIdx === 0}
-            onClick={() => setZoom(ZOOM_LEVELS[zoomIdx - 1])}
+            onClick={() => { if (zoomIdx > 0) setZoom(ZOOM_LEVELS[zoomIdx - 1]); }}
           >−</button>
           <span className="zoom-label">{zoom}×</span>
           <button
@@ -332,7 +332,7 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
             className="secondary-button zoom-btn"
             aria-label="Zoom in"
             disabled={zoomIdx === ZOOM_LEVELS.length - 1}
-            onClick={() => setZoom(ZOOM_LEVELS[zoomIdx + 1])}
+            onClick={() => { if (zoomIdx < ZOOM_LEVELS.length - 1) setZoom(ZOOM_LEVELS[zoomIdx + 1]); }}
           >+</button>
         </div>
         <strong>{outcome.setupQuality}% setup quality</strong>
@@ -345,7 +345,7 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
           width: W * zoom,
           height: H * zoom,
           display: "block",
-          imageRendering: zoom > 1 ? "pixelated" : "auto",
+          imageRendering: zoom > 1 ? "pixelated" : undefined,
         }}
         aria-label="Simulated flexible packaging web"
         data-testid="print-canvas"

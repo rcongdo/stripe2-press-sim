@@ -25,6 +25,11 @@ button {
   cursor: pointer;
 }
 
+.secondary-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .app-shell {
   min-height: 100vh;
   padding: 22px;

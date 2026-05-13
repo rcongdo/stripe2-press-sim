@@ -79,4 +79,12 @@ describe("PrintPreview", () => {
     const canvas = screen.getByTestId("print-canvas") as HTMLCanvasElement;
     expect(canvas.style.imageRendering).not.toBe("pixelated");
   });
+
+  it("reaches 4× zoom (canvas CSS width 3680px) after two zoom in clicks", () => {
+    render(<PrintPreview settings={defaultSettings} outcome={outcome} />);
+    fireEvent.click(screen.getByLabelText("Zoom in")); // 2×
+    fireEvent.click(screen.getByLabelText("Zoom in")); // 4×
+    expect(screen.getByTestId("print-canvas")).toHaveStyle({ width: "3680px" });
+    expect(screen.getByText("4×")).toBeInTheDocument();
+  });
 });
