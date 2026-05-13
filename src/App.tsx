@@ -6,7 +6,7 @@ import { PrintPreview } from "./components/PrintPreview";
 import { ScoreModal } from "./components/ScoreModal";
 import { starterJob } from "./domain/jobs";
 import { createInitialSettings, updateSetting } from "./domain/settings";
-import type { PressSettingKey, RegistrationKey, ScoreSummary } from "./domain/types";
+import type { InkChannelKey, InkChannelSettingKey, PressSettingKey, RegistrationKey, ScoreSummary } from "./domain/types";
 import { simulatePress } from "./simulation/engine";
 import { filterCoaching, scoreRun, type TrainingMode } from "./simulation/scoring";
 
@@ -34,6 +34,16 @@ export default function App() {
     setSettings((current) => ({
       ...current,
       registration: { ...current.registration, [key]: value },
+    }));
+  }
+
+  function handleInkChannelChange(channel: InkChannelKey, key: InkChannelSettingKey, value: number) {
+    setSettings((current) => ({
+      ...current,
+      inkChannels: {
+        ...current.inkChannels,
+        [channel]: { ...current.inkChannels[channel], [key]: value },
+      },
     }));
   }
 
@@ -70,6 +80,7 @@ export default function App() {
           onSettingChange={handleSettingChange}
           onAniloxPresetChange={handleAniloxPresetChange}
           onRegistrationChange={handleRegistrationChange}
+          onInkChannelChange={handleInkChannelChange}
         />
       </div>
       <ScoreModal score={score} onClose={() => setScore(null)} onReset={resetJob} />

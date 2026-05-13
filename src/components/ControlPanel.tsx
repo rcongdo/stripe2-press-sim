@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { aniloxPresets } from "../domain/jobs";
-import type { JobPreset, PressSettingKey, PressSettings, RegistrationKey } from "../domain/types";
+import type {
+  InkChannelKey,
+  InkChannelSettingKey,
+  JobPreset,
+  PressSettingKey,
+  PressSettings,
+  RegistrationKey,
+} from "../domain/types";
 
 type ControlPanelProps = {
   job: JobPreset;
@@ -8,6 +15,7 @@ type ControlPanelProps = {
   onSettingChange: (key: PressSettingKey, value: number) => void;
   onAniloxPresetChange: (volume: number, lineScreen: number) => void;
   onRegistrationChange: (key: RegistrationKey, value: number) => void;
+  onInkChannelChange: (channel: InkChannelKey, key: InkChannelSettingKey, value: number) => void;
 };
 
 type ColorName = "cyan" | "magenta" | "yellow" | "black";
@@ -26,7 +34,13 @@ const colorSwatches: Record<ColorName, string> = {
   black:   "#202124",
 };
 
+const inkChannelMap: Record<ColorName, InkChannelKey> = {
+  cyan: "C", magenta: "M", yellow: "Y", black: "K",
+};
+
 const sliderKeys: PressSettingKey[] = ["webTension", "dryerTemperature", "pressSpeed"];
+
+const inkSettingKeys: InkChannelSettingKey[] = ["viscosity", "strength", "impression"];
 
 export function ControlPanel({
   job,
@@ -34,8 +48,10 @@ export function ControlPanel({
   onSettingChange,
   onAniloxPresetChange,
   onRegistrationChange,
+  onInkChannelChange,
 }: ControlPanelProps) {
   const [selectedColor, setSelectedColor] = useState<ColorName>("cyan");
+  const [selectedInkColor, setSelectedInkColor] = useState<ColorName>("cyan");
 
   const currentPreset =
     aniloxPresets.find((p) => p.volume === settings.aniloxVolume) ??
@@ -104,8 +120,49 @@ export function ControlPanel({
       </div>
 
       <div className="control-group">
+        <h3>Ink</h3>
+        <div className="reg-colors" role="group" aria-label="Ink color">
+          {(Object.keys(colorKeys) as ColorName[]).map((color) => (
+            <button
+              key={color}
+              type="button"
+              className={`reg-color-btn${selectedInkColor === color ? " reg-color-btn--active" : ""}`}
+              style={{ "--swatch": colorSwatches[color] } as React.CSSProperties}
+              onClick={() => setSelectedInkColor(color)}
+              aria-pressed={selectedInkColor === color}
+            >
+              {color.charAt(0).toUpperCase() + color.slice(1)}
+            </button>
+          ))}
+        </div>
+        {inkSettingKeys.map((key) => {
+          const range = job.inkChannelRanges[key];
+          const ch = inkChannelMap[selectedInkColor];
+          return (
+            <label className="control" key={key}>
+              <span>
+                {range.label}
+                <strong>
+                  {settings.inkChannels[ch][key]} {range.unit}
+                </strong>
+              </span>
+              <input
+                type="range"
+                min={range.min}
+                max={range.max}
+                step={range.step}
+                value={settings.inkChannels[ch][key]}
+                aria-label={range.label}
+                onChange={(e) => onInkChannelChange(ch, key, Number(e.target.value))}
+              />
+            </label>
+          );
+        })}
+      </div>
+
+      <div className="control-group">
         <h3>Registration</h3>
-        <div className="reg-colors">
+        <div className="reg-colors" role="group" aria-label="Registration color">
           {(Object.keys(colorKeys) as ColorName[]).map((color) => (
             <button
               key={color}
