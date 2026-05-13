@@ -64,7 +64,7 @@ export type JobTarget = {
   tension: number;
   speed: number;
   aniloxVolume: number;
-  inkViscosity: number;
+  viscosity: number;
   impression: number;
 };
 

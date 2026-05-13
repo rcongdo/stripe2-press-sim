@@ -53,7 +53,7 @@ export function simulatePress(job: JobPreset, settings: PressSettings): Simulati
     const impressionLowCh  = clamp01((job.target.impression - ink.impression) / 38);
     const inkStrengthLoadCh = ink.strength / 100;
     // Viscosity contribution is relative to target — zero at target, positive above
-    const viscosityDeltaCh  = (ink.viscosity / job.target.inkViscosity) - 1;
+    const viscosityDeltaCh  = (ink.viscosity / job.target.viscosity) - 1;
 
     channelDensity[ch] = Number(Math.max(
       0.35,
@@ -85,7 +85,7 @@ export function simulatePress(job: JobPreset, settings: PressSettings): Simulati
   const impressionHigh  = clamp01((meanImpression - job.target.impression) / 42);
   const impressionLow   = clamp01((job.target.impression - meanImpression) / 38);
   // Viscosity and anilox loads relative to target (0 = at target)
-  const viscosityDelta  = meanViscosity / job.target.inkViscosity - 1;
+  const viscosityDelta  = meanViscosity / job.target.viscosity - 1;
   const inkStrengthLoad = meanStrength / 100;
   const meanAniloxLoad  = meanAniloxVolume / job.target.aniloxVolume;
 
@@ -97,7 +97,7 @@ export function simulatePress(job: JobPreset, settings: PressSettings): Simulati
     pinholes:   toSeverity(impressionLow * 0.9 + scale(meanAniloxVolume, job.target.aniloxVolume, 3.2) * 0.12),
     // dirtyPrint: excess impression or viscosity above target
     dirtyPrint: toSeverity(impressionHigh * 0.82 + Math.max(0, viscosityDelta) * 0.08),
-    mottle:     toSeverity(scale(meanViscosity, job.target.inkViscosity, 18) * 0.55 + dryingRisk * 0.28),
+    mottle:     toSeverity(scale(meanViscosity, job.target.viscosity, 18) * 0.55 + dryingRisk * 0.28),
     skips:      toSeverity(impressionLow * 0.7 + tensionError * 0.3),
     edgeSquash: toSeverity(impressionHigh * 0.92),
   };

@@ -32,7 +32,7 @@ export const starterJob: JobPreset = {
     tension: 50,
     speed: 650,
     aniloxVolume: 3.2,
-    inkViscosity: 28,
+    viscosity: 28,
     impression: 54,
   },
   initialSettings: {

@@ -33,7 +33,7 @@ export function updateSetting(
 export function createPerfectSettings(job: JobPreset): PressSettings {
   const perfectChannel: InkChannelSettings = {
     aniloxVolume: job.target.aniloxVolume,
-    viscosity: job.target.inkViscosity,
+    viscosity: job.target.viscosity,
     strength: 100,
     impression: job.target.impression,
   };
