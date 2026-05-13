@@ -15,13 +15,24 @@ const POUCH_ORIGINS = [10, 310, 610] as const;
 
 type Zone = { x: number; y: number; w: number; h: number };
 
+// Pouch dimensions
+const POUCH_W = 280;
+const POUCH_H = 400;
+const POUCH_TOP = 10;
+
 // Per-pouch zone coordinates — x is relative to each pouch's pouchX origin
 const ZONES: Zone[] = [
-  { x: 0, y: 10,  w: 280, h: 60  },  // header
-  { x: 0, y: 70,  w: 280, h: 220 },  // product graphic
-  { x: 0, y: 290, w: 280, h: 50  },  // flavor stripe
-  { x: 0, y: 340, w: 280, h: 70  },  // nutrition bar
+  { x: 0, y: 10,  w: POUCH_W, h: 60  },  // header
+  { x: 0, y: 70,  w: POUCH_W, h: 220 },  // product graphic
+  { x: 0, y: 290, w: POUCH_W, h: 50  },  // flavor stripe
+  { x: 0, y: 340, w: POUCH_W, h: 70  },  // nutrition bar
 ];
+
+// Named index constants to replace fragile destructuring
+const ZONE_HEADER    = 0;
+const ZONE_GRAPHIC   = 1;
+const ZONE_FLAVOR    = 2;
+const ZONE_NUTRITION = 3;
 
 // CMYK ink coverage per zone [header, graphic, flavor, nutrition]
 const COVERAGE: Record<"C" | "M" | "Y" | "K", [number, number, number, number]> = {
@@ -53,14 +64,17 @@ const REG_KEYS: Record<"C" | "M" | "Y" | "K", { x: keyof Registration; y: keyof 
 };
 
 function drawArtwork(ctx: CanvasRenderingContext2D, pouchX: number) {
-  const [headerZone, graphicZone, flavorZone, nutritionZone] = ZONES;
+  const headerZone    = ZONES[ZONE_HEADER];
+  const graphicZone   = ZONES[ZONE_GRAPHIC];
+  const flavorZone    = ZONES[ZONE_FLAVOR];
+  const nutritionZone = ZONES[ZONE_NUTRITION];
 
   // Pouch die-cut outline
   ctx.save();
   ctx.strokeStyle = "#d4c9b0";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.roundRect(pouchX, 10, 280, 400, 8);
+  ctx.roundRect(pouchX, POUCH_TOP, POUCH_W, POUCH_H, 8);
   ctx.stroke();
   ctx.restore();
 
@@ -71,18 +85,16 @@ function drawArtwork(ctx: CanvasRenderingContext2D, pouchX: number) {
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 28px Inter, sans-serif";
-  ctx.fillText("SUMMIT", pouchX + 140, headerZone.y + 36);
+  ctx.fillText("SUMMIT", pouchX + POUCH_W / 2, headerZone.y + 36);
   ctx.fillStyle = "#a8d4a8";
   ctx.font = "800 11px Inter, sans-serif";
-  ctx.fillText("TRAIL MIX CO.", pouchX + 140, headerZone.y + 54);
+  ctx.fillText("TRAIL MIX CO.", pouchX + POUCH_W / 2, headerZone.y + 54);
   ctx.restore();
 
   // Product graphic — amber sky gradient + mountain polygon + sun arc
   ctx.save();
-  const skyGrad = ctx.createLinearGradient(
-    pouchX + graphicZone.x, graphicZone.y,
-    pouchX + graphicZone.x, graphicZone.y + graphicZone.h,
-  );
+  // Vertical gradient — x coordinates are irrelevant for a top-to-bottom fill
+  const skyGrad = ctx.createLinearGradient(0, graphicZone.y, 0, graphicZone.y + graphicZone.h);
   skyGrad.addColorStop(0, "#e8a020");
   skyGrad.addColorStop(1, "#c05010");
   ctx.fillStyle = skyGrad;
@@ -90,7 +102,7 @@ function drawArtwork(ctx: CanvasRenderingContext2D, pouchX: number) {
 
   // Sun
   ctx.beginPath();
-  ctx.arc(pouchX + 140, graphicZone.y + 50, 36, Math.PI, 0);
+  ctx.arc(pouchX + POUCH_W / 2, graphicZone.y + 50, 36, Math.PI, 0);
   ctx.fillStyle = "#f0c040";
   ctx.fill();
 
@@ -115,7 +127,7 @@ function drawArtwork(ctx: CanvasRenderingContext2D, pouchX: number) {
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 13px Inter, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("ALPINE CLASSIC CRUNCH", pouchX + 140, flavorZone.y + 32);
+  ctx.fillText("ALPINE CLASSIC CRUNCH", pouchX + POUCH_W / 2, flavorZone.y + 32);
   ctx.restore();
 
   // Nutrition bar — cream background with claims text
@@ -127,7 +139,7 @@ function drawArtwork(ctx: CanvasRenderingContext2D, pouchX: number) {
   ctx.textAlign = "center";
   ctx.fillText(
     "NET WT 2.5 OZ (70g)  •  GLUTEN FREE  •  NON-GMO",
-    pouchX + 140,
+    pouchX + POUCH_W / 2,
     nutritionZone.y + 40,
   );
   ctx.restore();
@@ -216,6 +228,8 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
         }
       }
 
+      // Defect overlays below are web-wide (not per-pouch) — positions scatter across full canvas width
+
       // Pinhole defects — small white voids scattered across full web
       if (outcome.defects.pinholes > 0) {
         ctx.save();
@@ -251,7 +265,7 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
         ctx.restore();
       }
 
-      // Edge squash — dark smear at zone top/bottom edges, per pouch
+      // Edge squash is per-pouch — loops POUCH_ORIGINS because it renders at zone edges
       if (outcome.defects.edgeSquash > 0) {
         ctx.save();
         ctx.globalAlpha = (outcome.defects.edgeSquash / 100) * 0.35;
