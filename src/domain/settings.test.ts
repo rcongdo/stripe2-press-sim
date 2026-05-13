@@ -1,16 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { starterJob } from "./jobs";
-import { clampSetting, createInitialSettings, updateInkChannelSetting, updateSetting } from "./settings";
+import { snackPouchJob, starterJob } from "./jobs";
+import {
+  activateSpotChannel,
+  clampSetting,
+  createInitialSettings,
+  deactivateSpotChannel,
+  updateInkChannelSetting,
+  updateSetting,
+} from "./settings";
 
 describe("press setting helpers", () => {
   it("creates imperfect starter settings for the starter job", () => {
     const settings = createInitialSettings(starterJob);
-
     expect(settings).not.toBe(starterJob.initialSettings);
     expect(settings.registration).not.toBe(starterJob.initialSettings.registration);
     expect(settings.inkChannels.C.impression).toBe(67);
     expect(settings.pressSpeed).toBe(760);
-    expect(settings.registration.cyanX).toBe(-1.4);
+    expect(settings.registration.C.x).toBe(-1.4);
   });
 
   it("clamps numeric settings to their configured range", () => {
@@ -25,7 +31,6 @@ describe("press setting helpers", () => {
   it("updates settings without mutating the original object", () => {
     const original = createInitialSettings(starterJob);
     const updated = updateSetting(starterJob, original, "webTension", 60);
-
     expect(updated).not.toBe(original);
     expect(updated.webTension).toBe(60);
     expect(original.webTension).toBe(38);
@@ -34,7 +39,6 @@ describe("press setting helpers", () => {
   it("clamps updated settings to their configured range", () => {
     const original = createInitialSettings(starterJob);
     const updated = updateSetting(starterJob, original, "webTension", 200);
-
     expect(updated.webTension).toBe(80);
   });
 });
@@ -65,5 +69,38 @@ describe("updateInkChannelSetting", () => {
     const original = settings.inkChannels.C.viscosity;
     updateInkChannelSetting(starterJob, settings, "C", "viscosity", 40);
     expect(settings.inkChannels.C.viscosity).toBe(original);
+  });
+});
+
+describe("activateSpotChannel / deactivateSpotChannel", () => {
+  it("activateSpotChannel adds channel to inkChannels and registration", () => {
+    const settings = createInitialSettings(snackPouchJob);
+    expect("orange" in settings.inkChannels).toBe(false);
+
+    const updated = activateSpotChannel(snackPouchJob, settings, "orange");
+    expect("orange" in updated.inkChannels).toBe(true);
+    expect("orange" in updated.registration).toBe(true);
+    expect(updated.registration.orange).toEqual({ x: 0, y: 0 });
+    expect(updated.inkChannels.orange.aniloxVolume).toBe(snackPouchJob.target.aniloxVolume);
+  });
+
+  it("deactivateSpotChannel removes channel from inkChannels and registration", () => {
+    const settings = createInitialSettings(snackPouchJob);
+    const activated = activateSpotChannel(snackPouchJob, settings, "orange");
+    const deactivated = deactivateSpotChannel(activated, "orange");
+    expect("orange" in deactivated.inkChannels).toBe(false);
+    expect("orange" in deactivated.registration).toBe(false);
+  });
+
+  it("activate does not mutate original settings", () => {
+    const settings = createInitialSettings(snackPouchJob);
+    activateSpotChannel(snackPouchJob, settings, "orange");
+    expect("orange" in settings.inkChannels).toBe(false);
+  });
+
+  it("activating an already-active process channel is a no-op (channel already present)", () => {
+    const settings = createInitialSettings(snackPouchJob);
+    const updated = activateSpotChannel(snackPouchJob, settings, "C");
+    expect(updated.inkChannels.C).toEqual(settings.inkChannels.C);
   });
 });
