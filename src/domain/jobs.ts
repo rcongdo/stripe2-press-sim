@@ -24,6 +24,11 @@ export const starterJob: JobPreset = {
     dryerTemperature: { min: 80, max: 180, step: 5, unit: "F", label: "Dryer temperature" },
     pressSpeed: { min: 300, max: 1200, step: 10, unit: "fpm", label: "Press speed" },
   },
+  inkChannelRanges: {
+    viscosity:  { min: 18, max: 45,  step: 1, unit: "s",  label: "Viscosity"  },
+    strength:   { min: 70, max: 120, step: 1, unit: "%",  label: "Strength"   },
+    impression: { min: 0,  max: 100, step: 1, unit: "%",  label: "Impression" },
+  },
   target: {
     density: 1,
     gain: 0.18,
@@ -44,6 +49,12 @@ export const starterJob: JobPreset = {
     webTension: 38,
     dryerTemperature: 120,
     pressSpeed: 760,
+    inkChannels: {
+      C: { viscosity: 31, strength: 104, impression: 67 },
+      M: { viscosity: 31, strength: 104, impression: 67 },
+      Y: { viscosity: 31, strength: 104, impression: 67 },
+      K: { viscosity: 31, strength: 104, impression: 67 },
+    },
     registration: {
       cyanX: -1.4,
       cyanY: 0.4,

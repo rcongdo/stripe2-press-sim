@@ -20,6 +20,16 @@ export type RegistrationKey =
   | "blackX"
   | "blackY";
 
+export type InkChannelKey = "C" | "M" | "Y" | "K";
+
+export type InkChannelSettings = {
+  viscosity: number;
+  strength: number;
+  impression: number;
+};
+
+export type InkChannelSettingKey = keyof InkChannelSettings;
+
 export type SettingRange = {
   min: number;
   max: number;
@@ -48,6 +58,7 @@ export type Registration = Record<RegistrationKey, number>;
 export type PressSettings = Record<PressSettingKey, number> & {
   substrate: SubstrateId;
   registration: Registration;
+  inkChannels: Record<InkChannelKey, InkChannelSettings>;
 };
 
 export type JobTarget = {
@@ -67,6 +78,11 @@ export type JobPreset = {
   description: string;
   substrateOptions: SubstrateId[];
   ranges: Record<PressSettingKey, SettingRange>;
+  inkChannelRanges: {
+    viscosity: SettingRange;
+    strength: SettingRange;
+    impression: SettingRange;
+  };
   initialSettings: PressSettings;
   target: JobTarget;
 };
@@ -82,6 +98,8 @@ export type DefectSeverity = {
 export type SimulationOutcome = {
   density: number;
   gain: number;
+  channelDensity: Record<InkChannelKey, number>;
+  channelGain: Record<InkChannelKey, number>;
   registerError: number;
   dryingRisk: number;
   wasteRate: number;

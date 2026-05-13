@@ -1,4 +1,4 @@
-import type { JobPreset, PressSettingKey, PressSettings } from "./types";
+import type { InkChannelKey, InkChannelSettingKey, JobPreset, PressSettingKey, PressSettings } from "./types";
 
 export function createInitialSettings(job: JobPreset): PressSettings {
   return structuredClone(job.initialSettings);
@@ -26,5 +26,23 @@ export function updateSetting(
   return {
     ...settings,
     [key]: clampSetting(job, key, value),
+  };
+}
+
+export function updateInkChannelSetting(
+  job: JobPreset,
+  settings: PressSettings,
+  channel: InkChannelKey,
+  key: InkChannelSettingKey,
+  value: number,
+): PressSettings {
+  const range = job.inkChannelRanges[key];
+  const clamped = Math.min(range.max, Math.max(range.min, value));
+  return {
+    ...settings,
+    inkChannels: {
+      ...settings.inkChannels,
+      [channel]: { ...settings.inkChannels[channel], [key]: clamped },
+    },
   };
 }

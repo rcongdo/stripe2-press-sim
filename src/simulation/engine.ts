@@ -102,9 +102,13 @@ export function simulatePress(job: JobPreset, settings: PressSettings): Simulati
     });
   }
 
+  const densityVal = Number(density.toFixed(2));
+  const gainVal = Number(gain.toFixed(2));
   return {
-    density: Number(density.toFixed(2)),
-    gain: Number(gain.toFixed(2)),
+    density: densityVal,
+    gain: gainVal,
+    channelDensity: { C: densityVal, M: densityVal, Y: densityVal, K: densityVal },
+    channelGain: { C: gainVal, M: gainVal, Y: gainVal, K: gainVal },
     registerError: Number(registerError.toFixed(2)),
     dryingRisk: Math.round(dryingRisk * 100),
     wasteRate,
