@@ -64,6 +64,21 @@ const INK_COLOR: Record<"C" | "M" | "Y" | "K", string> = {
   K: "rgb(20,20,20)",
 };
 
+// Per-channel density targets — must match jobs.ts
+const CH_TARGET_DENSITY: Record<"C"|"M"|"Y"|"K", number> = { C: 1.4, M: 1.4, Y: 1.0, K: 1.6 };
+
+// CMYK separation values for each artwork element (computed from RGB via standard UCR)
+type ArtCmyk = { C: number; M: number; Y: number; K: number };
+const ART_HEADER_BG:    ArtCmyk = { C: 0.65, M: 0.00, Y: 0.38, K: 0.71 }; // #1a4a2e forest green
+const ART_HEADER_SUB:   ArtCmyk = { C: 0.20, M: 0.00, Y: 0.20, K: 0.17 }; // #a8d4a8 light green
+const ART_SKY_TOP:      ArtCmyk = { C: 0.00, M: 0.31, Y: 0.86, K: 0.09 }; // #e8a020 amber
+const ART_SKY_BOT:      ArtCmyk = { C: 0.00, M: 0.58, Y: 0.92, K: 0.25 }; // #c05010 deep amber
+const ART_SUN:          ArtCmyk = { C: 0.00, M: 0.20, Y: 0.73, K: 0.06 }; // #f0c040 yellow
+const ART_MOUNTAIN:     ArtCmyk = { C: 0.00, M: 0.45, Y: 0.72, K: 0.77 }; // #3a2010 dark brown
+const ART_FLAVOR_BG:    ArtCmyk = { C: 0.00, M: 0.43, Y: 0.95, K: 0.17 }; // #d4780a amber
+const ART_NUTRITION_BG: ArtCmyk = { C: 0.00, M: 0.02, Y: 0.09, K: 0.04 }; // #f5f0e0 cream
+const ART_BROWN_TEXT:   ArtCmyk = { C: 0.00, M: 0.22, Y: 0.43, K: 0.71 }; // #4a3a2a dark brown
+
 const REG_KEYS: Record<"C" | "M" | "Y" | "K", { x: keyof Registration; y: keyof Registration }> = {
   C: { x: "cyanX",    y: "cyanY" },
   M: { x: "magentaX", y: "magentaY" },
@@ -71,13 +86,8 @@ const REG_KEYS: Record<"C" | "M" | "Y" | "K", { x: keyof Registration; y: keyof 
   K: { x: "blackX",   y: "blackY" },
 };
 
-function drawArtwork(ctx: CanvasRenderingContext2D, pouchX: number) {
-  const headerZone    = ZONES[ZONE_HEADER];
-  const graphicZone   = ZONES[ZONE_GRAPHIC];
-  const flavorZone    = ZONES[ZONE_FLAVOR];
-  const nutritionZone = ZONES[ZONE_NUTRITION];
-
-  // Pouch die-cut outline
+// Die-cut outline — always drawn regardless of channels (structural context)
+function drawDieCut(ctx: CanvasRenderingContext2D, pouchX: number) {
   ctx.save();
   ctx.strokeStyle = "#d4c9b0";
   ctx.lineWidth = SCALE;
@@ -85,74 +95,100 @@ function drawArtwork(ctx: CanvasRenderingContext2D, pouchX: number) {
   ctx.roundRect(pouchX, POUCH_TOP, POUCH_W, POUCH_H, 8 * SCALE);
   ctx.stroke();
   ctx.restore();
-
-  // Header — forest green background with brand name
-  ctx.save();
-  ctx.fillStyle = "#1a4a2e";
-  ctx.fillRect(pouchX + headerZone.x, headerZone.y, headerZone.w, headerZone.h);
-  ctx.textAlign = "center";
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `bold ${28 * SCALE}px Inter, sans-serif`;
-  ctx.fillText("SUMMIT", pouchX + POUCH_W / 2, headerZone.y + 36 * SCALE);
-  ctx.fillStyle = "#a8d4a8";
-  ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
-  ctx.fillText("TRAIL MIX CO.", pouchX + POUCH_W / 2, headerZone.y + 54 * SCALE);
-  ctx.restore();
-
-  // Product graphic — amber sky gradient + mountain polygon + sun arc
-  ctx.save();
-  // Vertical gradient — x coordinates are irrelevant for a top-to-bottom fill
-  const skyGrad = ctx.createLinearGradient(0, graphicZone.y, 0, graphicZone.y + graphicZone.h);
-  skyGrad.addColorStop(0, "#e8a020");
-  skyGrad.addColorStop(1, "#c05010");
-  ctx.fillStyle = skyGrad;
-  ctx.fillRect(pouchX + graphicZone.x, graphicZone.y, graphicZone.w, graphicZone.h);
-
-  // Sun
-  ctx.beginPath();
-  ctx.arc(pouchX + POUCH_W / 2, graphicZone.y + 50 * SCALE, 36 * SCALE, Math.PI, 0);
-  ctx.fillStyle = "#f0c040";
-  ctx.fill();
-
-  // Mountain silhouette
-  ctx.beginPath();
-  ctx.moveTo(pouchX,             graphicZone.y + graphicZone.h);
-  ctx.lineTo(pouchX +  60*SCALE, graphicZone.y + 100*SCALE);
-  ctx.lineTo(pouchX + 110*SCALE, graphicZone.y + 150*SCALE);
-  ctx.lineTo(pouchX + 140*SCALE, graphicZone.y +  90*SCALE);
-  ctx.lineTo(pouchX + 180*SCALE, graphicZone.y + 140*SCALE);
-  ctx.lineTo(pouchX + 220*SCALE, graphicZone.y + 110*SCALE);
-  ctx.lineTo(pouchX + 280*SCALE, graphicZone.y + graphicZone.h);
-  ctx.closePath();
-  ctx.fillStyle = "#3a2010";
-  ctx.fill();
-  ctx.restore();
-
-  // Flavor stripe — amber band with product name
-  ctx.save();
-  ctx.fillStyle = "#d4780a";
-  ctx.fillRect(pouchX + flavorZone.x, flavorZone.y, flavorZone.w, flavorZone.h);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `bold ${13 * SCALE}px Inter, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.fillText("ALPINE CLASSIC CRUNCH", pouchX + POUCH_W / 2, flavorZone.y + 32 * SCALE);
-  ctx.restore();
-
-  // Nutrition bar — cream background with claims text
-  ctx.save();
-  ctx.fillStyle = "#f5f0e0";
-  ctx.fillRect(pouchX + nutritionZone.x, nutritionZone.y, nutritionZone.w, nutritionZone.h);
-  ctx.fillStyle = "#4a3a2a";
-  ctx.font = `${9 * SCALE}px Inter, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.fillText(
-    "NET WT 2.5 OZ (70g)  •  GLUTEN FREE  •  NON-GMO",
-    pouchX + POUCH_W / 2,
-    nutritionZone.y + 40 * SCALE,
-  );
-  ctx.restore();
 }
 
+// Draw one ink channel's contribution to the artwork using CMYK separation values.
+// Registration offset is applied as a canvas translate so all elements shift together.
+// Density scales each element's alpha relative to the channel's target density.
+function drawArtworkForChannel(
+  ctx: CanvasRenderingContext2D,
+  channel: "C" | "M" | "Y" | "K",
+  pouchX: number,
+  regX: number,
+  regY: number,
+  density: number,
+) {
+  const densityScale = Math.min(1.5, density / CH_TARGET_DENSITY[channel]);
+  const hz = ZONES[ZONE_HEADER];
+  const gz = ZONES[ZONE_GRAPHIC];
+  const fz = ZONES[ZONE_FLAVOR];
+  const nz = ZONES[ZONE_NUTRITION];
+
+  ctx.save();
+  ctx.globalCompositeOperation = "multiply";
+  ctx.fillStyle = INK_COLOR[channel];
+
+  // Clip to pouch + small bleed, then translate by registration offset
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(pouchX - 2 * MIL_TO_PX, POUCH_TOP - 2 * MIL_TO_PX, POUCH_W + 4 * MIL_TO_PX, POUCH_H + 4 * MIL_TO_PX);
+  ctx.clip();
+  ctx.translate(regX, regY);
+
+  function fi(art: ArtCmyk, drawFn: () => void) {
+    const a = Math.min(1, art[channel] * densityScale);
+    if (a < 0.005) return;
+    ctx.globalAlpha = a;
+    drawFn();
+  }
+
+  // Header background
+  fi(ART_HEADER_BG, () => ctx.fillRect(pouchX + hz.x, hz.y, hz.w, hz.h));
+
+  // "TRAIL MIX CO." subtext (light green — positive text, no reversal needed)
+  fi(ART_HEADER_SUB, () => {
+    ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText("TRAIL MIX CO.", pouchX + POUCH_W / 2, hz.y + 54 * SCALE);
+  });
+
+  // Sky — two halves approximate the original gradient
+  fi(ART_SKY_TOP, () => ctx.fillRect(pouchX + gz.x, gz.y,              gz.w, gz.h / 2));
+  fi(ART_SKY_BOT, () => ctx.fillRect(pouchX + gz.x, gz.y + gz.h / 2,  gz.w, gz.h / 2));
+
+  // Sun semicircle
+  fi(ART_SUN, () => {
+    ctx.beginPath();
+    ctx.arc(pouchX + POUCH_W / 2, gz.y + 50 * SCALE, 36 * SCALE, Math.PI, 0);
+    ctx.fill();
+  });
+
+  // Mountain silhouette
+  fi(ART_MOUNTAIN, () => {
+    ctx.beginPath();
+    ctx.moveTo(pouchX,              gz.y + gz.h);
+    ctx.lineTo(pouchX +  60 * SCALE, gz.y + 100 * SCALE);
+    ctx.lineTo(pouchX + 110 * SCALE, gz.y + 150 * SCALE);
+    ctx.lineTo(pouchX + 140 * SCALE, gz.y +  90 * SCALE);
+    ctx.lineTo(pouchX + 180 * SCALE, gz.y + 140 * SCALE);
+    ctx.lineTo(pouchX + 220 * SCALE, gz.y + 110 * SCALE);
+    ctx.lineTo(pouchX + 280 * SCALE, gz.y + gz.h);
+    ctx.closePath();
+    ctx.fill();
+  });
+
+  // Flavor stripe
+  fi(ART_FLAVOR_BG, () => ctx.fillRect(pouchX + fz.x, fz.y, fz.w, fz.h));
+
+  // Nutrition bar
+  fi(ART_NUTRITION_BG, () => ctx.fillRect(pouchX + nz.x, nz.y, nz.w, nz.h));
+
+  // Nutrition text (dark brown positive text)
+  fi(ART_BROWN_TEXT, () => {
+    ctx.font = `${9 * SCALE}px Inter, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(
+      "NET WT 2.5 OZ (70g)  •  GLUTEN FREE  •  NON-GMO",
+      pouchX + POUCH_W / 2,
+      nz.y + 40 * SCALE,
+    );
+  });
+
+  ctx.restore(); // pop translate + clip
+  ctx.restore(); // pop compositeOperation
+}
+
+// 4× halftone dot grid for one channel
 function drawPlate(
   ctx: CanvasRenderingContext2D,
   channel: "C" | "M" | "Y" | "K",
@@ -161,7 +197,6 @@ function drawPlate(
   regY: number,
   gain: number,
   density: number,
-  showDots: boolean,
 ) {
   const angle = SCREEN_ANGLE[channel];
   const coverages = COVERAGE[channel];
@@ -170,35 +205,10 @@ function drawPlate(
   ctx.save();
   ctx.globalCompositeOperation = "multiply";
   ctx.fillStyle = INK_COLOR[channel];
-
-  if (!showDots) {
-    // 1× continuous-tone: apply registration offset so color channels shift
-    // visibly when misaligned. Clip to pouch+bleed so shifted fills don't
-    // bleed into adjacent pouches.
-    const REG_BLEED_1X = 4 * MIL_TO_PX;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(pouchX - REG_BLEED_1X, POUCH_TOP - REG_BLEED_1X, POUCH_W + REG_BLEED_1X * 2, POUCH_H + REG_BLEED_1X * 2);
-    ctx.clip();
-    const plateAlpha = Math.min(0.5, density / 4);
-    ZONES.forEach((zone, i) => {
-      const coverage = coverages[i];
-      if (coverage < 0.01) return;
-      ctx.globalAlpha = plateAlpha * coverage;
-      ctx.fillRect(pouchX + zone.x + regX, zone.y + regY, zone.w, zone.h);
-    });
-    ctx.restore();
-    ctx.restore();
-    return;
-  }
-
-  // 4× halftone dot grid
   ctx.globalAlpha = baseAlpha;
 
-  // Single pouch-level clip with registration bleed — lets misaligned dots
-  // appear at artwork edges instead of being cut off by per-zone clipping
   ctx.save();
-  const REG_BLEED = 2 * MIL_TO_PX; // 32 internal px — gutter between pouches is 80px, so 32 stays clear
+  const REG_BLEED = 2 * MIL_TO_PX; // 32px — gutter between pouches is 80px so no cross-bleed
   ctx.beginPath();
   ctx.rect(pouchX - REG_BLEED, POUCH_TOP - REG_BLEED, POUCH_W + REG_BLEED * 2, POUCH_H + REG_BLEED * 2);
   ctx.clip();
@@ -206,7 +216,6 @@ function drawPlate(
   ZONES.forEach((zone, i) => {
     const coverage = coverages[i];
     if (coverage < 0.01) return;
-
     const radius = PITCH * 0.48 * Math.sqrt(coverage) * (1 + gain * 1.5);
     if (radius <= 0) return;
 
@@ -227,8 +236,8 @@ function drawPlate(
     ctx.restore();
   });
 
-  ctx.restore(); // pop pouch clip
-  ctx.restore(); // pop globalAlpha / compositeOperation
+  ctx.restore();
+  ctx.restore();
 }
 
 const CH_COLORS: Record<"C" | "M" | "Y" | "K", string> = {
@@ -305,23 +314,24 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
       ctx.roundRect(4 * SCALE, 4 * SCALE, W_CANVAS - 8 * SCALE, H_CANVAS - 8 * SCALE, 6 * SCALE);
       ctx.fill();
 
-      // Artwork layer — only at 1× and only when at least one channel is on.
-      // At 4× the view is raw halftone screen against substrate; at 0 channels
-      // the substrate should be blank white.
-      const anyVisible = Object.values(channelVisible).some(Boolean);
-      if (!showDots && anyVisible) {
-        for (const pouchX of POUCH_ORIGINS) {
-          drawArtwork(ctx, pouchX);
-        }
+      // Die-cut outlines — always visible for spatial context
+      for (const pouchX of POUCH_ORIGINS) {
+        drawDieCut(ctx, pouchX);
       }
 
-      // CMYK plates in standard print order: Y → M → C → K, for all 3 pouches
+      // CMYK channels in standard print order: Y → M → C → K
+      // 1×: draw artwork as proper CMYK separation (channel isolation works correctly)
+      // 4×: draw halftone dot grid only
       for (const pouchX of POUCH_ORIGINS) {
         for (const ch of ["Y", "M", "C", "K"] as const) {
           if (!channelVisible[ch]) continue;
           const regX = settings.registration[REG_KEYS[ch].x] * MIL_TO_PX;
           const regY = settings.registration[REG_KEYS[ch].y] * MIL_TO_PX;
-          drawPlate(ctx, ch, pouchX, regX, regY, outcome.channelGain[ch], outcome.channelDensity[ch], showDots);
+          if (showDots) {
+            drawPlate(ctx, ch, pouchX, regX, regY, outcome.channelGain[ch], outcome.channelDensity[ch]);
+          } else {
+            drawArtworkForChannel(ctx, ch, pouchX, regX, regY, outcome.channelDensity[ch]);
+          }
         }
       }
 
