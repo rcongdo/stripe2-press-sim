@@ -198,7 +198,7 @@ function drawPlate(
   // Single pouch-level clip with registration bleed — lets misaligned dots
   // appear at artwork edges instead of being cut off by per-zone clipping
   ctx.save();
-  const REG_BLEED = 4 * MIL_TO_PX; // 64 internal px; gutter between pouches is 80px so no cross-bleed
+  const REG_BLEED = 2 * MIL_TO_PX; // 32 internal px — gutter between pouches is 80px, so 32 stays clear
   ctx.beginPath();
   ctx.rect(pouchX - REG_BLEED, POUCH_TOP - REG_BLEED, POUCH_W + REG_BLEED * 2, POUCH_H + REG_BLEED * 2);
   ctx.clip();
@@ -305,9 +305,14 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
       ctx.roundRect(4 * SCALE, 4 * SCALE, W_CANVAS - 8 * SCALE, H_CANVAS - 8 * SCALE, 6 * SCALE);
       ctx.fill();
 
-      // Artwork layer — draw brand elements for all 3 pouches before plates
-      for (const pouchX of POUCH_ORIGINS) {
-        drawArtwork(ctx, pouchX);
+      // Artwork layer — only at 1× and only when at least one channel is on.
+      // At 4× the view is raw halftone screen against substrate; at 0 channels
+      // the substrate should be blank white.
+      const anyVisible = Object.values(channelVisible).some(Boolean);
+      if (!showDots && anyVisible) {
+        for (const pouchX of POUCH_ORIGINS) {
+          drawArtwork(ctx, pouchX);
+        }
       }
 
       // CMYK plates in standard print order: Y → M → C → K, for all 3 pouches
