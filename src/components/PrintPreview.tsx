@@ -111,11 +111,22 @@ function drawArtworkForChannel(
   ctx.globalCompositeOperation = "multiply";
   ctx.fillStyle = INK_COLOR[channel];
 
-  // Clip to pouch + small bleed, then translate by registration offset
+  // Evenodd clip: (pouch + bleed) minus the reversed-text knockout holes.
+  // Holes are placed at text_pos + regOffset in canvas-native coords so they
+  // shift with this channel's plate — exposing ink fringe when mis-registered.
   ctx.save();
+  ctx.font = `900 ${34 * SCALE}px Inter, sans-serif`;
+  ctx.textBaseline = "middle";
+  const summitHW = ctx.measureText("SUMMIT").width / 2 + 2 * SCALE;
+  const summitHH = 22 * SCALE;
+  ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
+  const alpineHW = ctx.measureText("ALPINE CLASSIC CRUNCH").width / 2 + 2 * SCALE;
+  const alpineHH = 8 * SCALE;
   ctx.beginPath();
   ctx.rect(pouchX - 2 * MIL_TO_PX, POUCH_TOP - 2 * MIL_TO_PX, POUCH_W + 4 * MIL_TO_PX, POUCH_H + 4 * MIL_TO_PX);
-  ctx.clip();
+  ctx.rect(pouchX + POUCH_W / 2 - summitHW + regX, hz.y + hz.h * 0.48 - summitHH + regY, summitHW * 2, summitHH * 2);
+  ctx.rect(pouchX + POUCH_W / 2 - alpineHW + regX, fz.y + fz.h / 2 - alpineHH + regY, alpineHW * 2, alpineHH * 2);
+  ctx.clip("evenodd");
   ctx.translate(regX, regY);
 
   function fi(art: ArtCmyk, drawFn: () => void) {
@@ -177,20 +188,6 @@ function drawArtworkForChannel(
     );
   });
 
-  // Reversed-text knockout — inside translate so the hole shifts with this channel's registration.
-  // When mis-registered, the hole drifts off the text, letting this channel's ink bleed in.
-  ctx.save();
-  ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = "#fffdf8";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.globalAlpha = 1;
-  ctx.font = `900 ${34 * SCALE}px Inter, sans-serif`;
-  ctx.fillText("SUMMIT", pouchX + POUCH_W / 2, hz.y + hz.h * 0.48);
-  ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
-  ctx.fillText("ALPINE CLASSIC CRUNCH", pouchX + POUCH_W / 2, fz.y + fz.h / 2);
-  ctx.restore();
-
   ctx.restore(); // pop translate + clip
   ctx.restore(); // pop compositeOperation
 }
@@ -219,11 +216,21 @@ function drawPlate(
   ctx.fillStyle = INK_COLOR[channel];
   ctx.globalAlpha = baseAlpha;
 
+  // Evenodd clip: (pouch + bleed) minus the reversed-text knockout holes at this channel's offset.
   ctx.save();
+  ctx.font = `900 ${34 * SCALE}px Inter, sans-serif`;
+  ctx.textBaseline = "middle";
+  const summitHW = ctx.measureText("SUMMIT").width / 2 + 2 * SCALE;
+  const summitHH = 22 * SCALE;
+  ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
+  const alpineHW = ctx.measureText("ALPINE CLASSIC CRUNCH").width / 2 + 2 * SCALE;
+  const alpineHH = 8 * SCALE;
   const REG_BLEED = 3 * MIL_TO_PX;
   ctx.beginPath();
   ctx.rect(pouchX - REG_BLEED, POUCH_TOP - REG_BLEED, POUCH_W + REG_BLEED * 2, POUCH_H + REG_BLEED * 2);
-  ctx.clip();
+  ctx.rect(pouchX + POUCH_W / 2 - summitHW + regX, hz.y + hz.h * 0.48 - summitHH + regY, summitHW * 2, summitHH * 2);
+  ctx.rect(pouchX + POUCH_W / 2 - alpineHW + regX, fz.y + fz.h / 2 - alpineHH + regY, alpineHW * 2, alpineHH * 2);
+  ctx.clip("evenodd");
   ctx.translate(regX, regY);
 
   // Draw halftone dots clipped to an arbitrary path. buildPath must leave an open path.
@@ -323,19 +330,6 @@ function drawPlate(
       ctx.restore();
     }
   }
-
-  // Reversed-text knockout — inside translate so the hole shifts with this channel's registration.
-  ctx.save();
-  ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = "#fffdf8";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.globalAlpha = 1;
-  ctx.font = `900 ${34 * SCALE}px Inter, sans-serif`;
-  ctx.fillText("SUMMIT", pouchX + POUCH_W / 2, hz.y + hz.h * 0.48);
-  ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
-  ctx.fillText("ALPINE CLASSIC CRUNCH", pouchX + POUCH_W / 2, fz.y + fz.h / 2);
-  ctx.restore();
 
   ctx.restore();
   ctx.restore();
