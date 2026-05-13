@@ -5,7 +5,7 @@ import { MetricsStrip } from "./components/MetricsStrip";
 import { PrintPreview } from "./components/PrintPreview";
 import { ScoreModal } from "./components/ScoreModal";
 import { starterJob } from "./domain/jobs";
-import { createInitialSettings, updateSetting } from "./domain/settings";
+import { createInitialSettings, updateInkChannelSetting, updateSetting } from "./domain/settings";
 import type { InkChannelKey, InkChannelSettingKey, PressSettingKey, RegistrationKey, ScoreSummary } from "./domain/types";
 import { simulatePress } from "./simulation/engine";
 import { filterCoaching, scoreRun, type TrainingMode } from "./simulation/scoring";
@@ -38,13 +38,7 @@ export default function App() {
   }
 
   function handleInkChannelChange(channel: InkChannelKey, key: InkChannelSettingKey, value: number) {
-    setSettings((current) => ({
-      ...current,
-      inkChannels: {
-        ...current.inkChannels,
-        [channel]: { ...current.inkChannels[channel], [key]: value },
-      },
-    }));
+    setSettings((current) => updateInkChannelSetting(starterJob, current, channel, key, value));
   }
 
   function resetJob() {
