@@ -1,25 +1,19 @@
-import type { InkChannelKey, SimulationOutcome } from "../domain/types";
+import type { JobPreset, SimulationOutcome } from "../domain/types";
 
 type MetricsStripProps = {
+  job: JobPreset;
   outcome: SimulationOutcome;
-};
-
-const CHANNELS: InkChannelKey[] = ["C", "M", "Y", "K"];
-const CHANNEL_COLOR: Record<InkChannelKey, string> = {
-  C: "#00bef0",
-  M: "#e0009a",
-  Y: "#c89400",
-  K: "#222",
 };
 
 function registerStatus(err: number): { label: string; color: string } {
   if (err < 0.5) return { label: "Good", color: "#22a559" };
   if (err < 1.5) return { label: "OK",   color: "#e08c00" };
-  return              { label: "Off",  color: "#d63b3b" };
+  return              { label: "Bad",  color: "#d63b3b" };
 }
 
-export function MetricsStrip({ outcome }: MetricsStripProps) {
+export function MetricsStrip({ job, outcome }: MetricsStripProps) {
   const reg = registerStatus(outcome.registerError);
+  const activeChannels = job.channels.filter(ch => ch.id in outcome.channelDensity);
 
   return (
     <section className="metrics-strip" aria-label="Live press metrics">
@@ -43,13 +37,15 @@ export function MetricsStrip({ outcome }: MetricsStripProps) {
             </tr>
           </thead>
           <tbody>
-            {CHANNELS.map((ch) => {
-              const sctv = Math.round(outcome.channelGain[ch] * 100);
+            {activeChannels.map(ch => {
+              const sctv = Math.round((outcome.channelGain[ch.id] ?? 0) * 100);
               const sctvStr = sctv > 0 ? `+${sctv}%` : `${sctv}%`;
               return (
-                <tr key={ch}>
-                  <td className="ch-swatch" style={{ color: CHANNEL_COLOR[ch] }}>{ch}</td>
-                  <td className="ch-val">{outcome.channelDensity[ch].toFixed(2)}</td>
+                <tr key={ch.id}>
+                  <td className="ch-swatch" style={{ color: ch.displayColor }}>
+                    {ch.id.length === 1 ? ch.id : ch.id.slice(0, 2).toUpperCase()}
+                  </td>
+                  <td className="ch-val">{(outcome.channelDensity[ch.id] ?? 0).toFixed(2)}</td>
                   <td className="ch-val">{sctvStr}</td>
                 </tr>
               );
