@@ -1,5 +1,7 @@
 # Flexographic Press Simulator
 
+**Live demo:** https://rcongdo.github.io/stripe2-press-sim/
+
 An interactive training tool that simulates a wide-web flexographic press for flexible packaging. Operators adjust press settings in real time and see how each change affects print quality, defects, and waste.
 
 ## What it simulates
