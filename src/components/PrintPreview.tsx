@@ -208,7 +208,7 @@ function drawPlate(
   ctx.globalAlpha = baseAlpha;
 
   ctx.save();
-  const REG_BLEED = 2 * MIL_TO_PX; // 32px — gutter between pouches is 80px so no cross-bleed
+  const REG_BLEED = 3 * MIL_TO_PX; // 48px — allows dots to bleed visibly into gutter whitespace
   ctx.beginPath();
   ctx.rect(pouchX - REG_BLEED, POUCH_TOP - REG_BLEED, POUCH_W + REG_BLEED * 2, POUCH_H + REG_BLEED * 2);
   ctx.clip();
@@ -237,6 +237,29 @@ function drawPlate(
   });
 
   ctx.restore();
+  ctx.restore();
+}
+
+// Reversed-out text — areas where no ink is applied; substrate shows through.
+// Must be drawn AFTER all channel content using source-over to punch back to substrate color.
+function drawReversedText(ctx: CanvasRenderingContext2D, pouchX: number) {
+  const hz = ZONES[ZONE_HEADER];
+  const fz = ZONES[ZONE_FLAVOR];
+
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = "#fffdf8";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  // "SUMMIT" — large product name reversed out of the dark header background
+  ctx.font = `900 ${34 * SCALE}px Inter, sans-serif`;
+  ctx.fillText("SUMMIT", pouchX + POUCH_W / 2, hz.y + hz.h * 0.48);
+
+  // "ALPINE CLASSIC CRUNCH" — reversed out of the amber flavor stripe
+  ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
+  ctx.fillText("ALPINE CLASSIC CRUNCH", pouchX + POUCH_W / 2, fz.y + fz.h / 2);
+
   ctx.restore();
 }
 
@@ -314,11 +337,6 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
       ctx.roundRect(4 * SCALE, 4 * SCALE, W_CANVAS - 8 * SCALE, H_CANVAS - 8 * SCALE, 6 * SCALE);
       ctx.fill();
 
-      // Die-cut outlines — always visible for spatial context
-      for (const pouchX of POUCH_ORIGINS) {
-        drawDieCut(ctx, pouchX);
-      }
-
       // CMYK channels in standard print order: Y → M → C → K
       // 1×: draw artwork as proper CMYK separation (channel isolation works correctly)
       // 4×: draw halftone dot grid only
@@ -333,6 +351,18 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
             drawArtworkForChannel(ctx, ch, pouchX, regX, regY, outcome.channelDensity[ch]);
           }
         }
+      }
+
+      // Reversed-out text — punch substrate color back through all channel content (1× only)
+      if (!showDots) {
+        for (const pouchX of POUCH_ORIGINS) {
+          drawReversedText(ctx, pouchX);
+        }
+      }
+
+      // Die-cut outlines drawn last so they sit on top of any bleeding dots
+      for (const pouchX of POUCH_ORIGINS) {
+        drawDieCut(ctx, pouchX);
       }
 
       // Defect overlays below are web-wide (not per-pouch) — positions scatter across full canvas width
