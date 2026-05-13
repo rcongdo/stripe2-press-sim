@@ -42,13 +42,6 @@ const ZONE_GRAPHIC   = 1;
 const ZONE_FLAVOR    = 2;
 const ZONE_NUTRITION = 3;
 
-// CMYK ink coverage per zone [header, graphic, flavor, nutrition]
-const COVERAGE: Record<"C" | "M" | "Y" | "K", [number, number, number, number]> = {
-  C: [0.15, 0.60, 0.05, 0.05],
-  M: [0.20, 0.50, 0.35, 0.05],
-  Y: [0.10, 0.40, 0.70, 0.05],
-  K: [0.85, 0.15, 0.55, 0.70],
-};
 
 const SCREEN_ANGLE: Record<"C" | "M" | "Y" | "K", number> = {
   C: (15 * Math.PI) / 180,
@@ -188,7 +181,7 @@ function drawArtworkForChannel(
   ctx.restore(); // pop compositeOperation
 }
 
-// 4× halftone dot grid for one channel
+// 4× halftone dot grid for one channel — regions match drawArtworkForChannel exactly
 function drawPlate(
   ctx: CanvasRenderingContext2D,
   channel: "C" | "M" | "Y" | "K",
@@ -199,8 +192,13 @@ function drawPlate(
   density: number,
 ) {
   const angle = SCREEN_ANGLE[channel];
-  const coverages = COVERAGE[channel];
+  const densityScale = Math.min(1.5, density / CH_TARGET_DENSITY[channel]);
   const baseAlpha = Math.min(1, Math.max(MIN_PLATE_ALPHA, density));
+
+  const hz = ZONES[ZONE_HEADER];
+  const gz = ZONES[ZONE_GRAPHIC];
+  const fz = ZONES[ZONE_FLAVOR];
+  const nz = ZONES[ZONE_NUTRITION];
 
   ctx.save();
   ctx.globalCompositeOperation = "multiply";
@@ -212,20 +210,20 @@ function drawPlate(
   ctx.beginPath();
   ctx.rect(pouchX - REG_BLEED, POUCH_TOP - REG_BLEED, POUCH_W + REG_BLEED * 2, POUCH_H + REG_BLEED * 2);
   ctx.clip();
+  ctx.translate(regX, regY);
 
-  ZONES.forEach((zone, i) => {
-    const coverage = coverages[i];
+  function dotsInRect(art: ArtCmyk, rx: number, ry: number, rw: number, rh: number) {
+    const coverage = art[channel] * densityScale;
     if (coverage < 0.01) return;
     const radius = PITCH * 0.48 * Math.sqrt(coverage) * (1 + gain * 1.5);
-    if (radius <= 0) return;
-
-    const cx = pouchX + zone.x + zone.w / 2 + regX;
-    const cy = zone.y + zone.h / 2 + regY;
+    if (radius < 0.5) return;
     ctx.save();
-    ctx.translate(cx, cy);
+    ctx.beginPath();
+    ctx.rect(rx, ry, rw, rh);
+    ctx.clip();
+    ctx.translate(rx + rw / 2, ry + rh / 2);
     ctx.rotate(angle);
-
-    const span = Math.ceil(Math.hypot(zone.w, zone.h) / 2) + PITCH;
+    const span = Math.ceil(Math.hypot(rw, rh) / 2) + PITCH;
     for (let dx = -span; dx <= span; dx += PITCH) {
       for (let dy = -span; dy <= span; dy += PITCH) {
         ctx.beginPath();
@@ -234,7 +232,23 @@ function drawPlate(
       }
     }
     ctx.restore();
-  });
+  }
+
+  // Header background
+  dotsInRect(ART_HEADER_BG, pouchX + hz.x, hz.y, hz.w, hz.h);
+
+  // Sky — upper half / lower half of graphic zone
+  dotsInRect(ART_SKY_TOP, pouchX + gz.x, gz.y,              gz.w, gz.h / 2);
+  dotsInRect(ART_SKY_BOT, pouchX + gz.x, gz.y + gz.h / 2,  gz.w, gz.h / 2);
+
+  // Mountain — lower ~55% of graphic zone (matches polygon extents)
+  dotsInRect(ART_MOUNTAIN, pouchX + gz.x, gz.y + gz.h * 0.45, gz.w, gz.h * 0.55);
+
+  // Flavor stripe
+  dotsInRect(ART_FLAVOR_BG, pouchX + fz.x, fz.y, fz.w, fz.h);
+
+  // Nutrition bar
+  dotsInRect(ART_NUTRITION_BG, pouchX + nz.x, nz.y, nz.w, nz.h);
 
   ctx.restore();
   ctx.restore();
