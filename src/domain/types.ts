@@ -1,21 +1,28 @@
 export type SubstrateId = "pet-film" | "opp-film" | "paper-laminate";
 
+export type ChannelId = string;
+
 export type PressSettingKey =
   | "webTension"
   | "dryerTemperature"
   | "pressSpeed";
 
-export type RegistrationKey =
-  | "cyanX"
-  | "cyanY"
-  | "magentaX"
-  | "magentaY"
-  | "yellowX"
-  | "yellowY"
-  | "blackX"
-  | "blackY";
+export type RegistrationOffset = { x: number; y: number };
 
-export type InkChannelKey = "C" | "M" | "Y" | "K";
+export type ArtworkZone =
+  | { type: "rect"; x: number; y: number; w: number; h: number }
+  | { type: "polygon"; points: [number, number][] };
+
+export type ChannelDef = {
+  id: ChannelId;
+  name: string;
+  isProcess: boolean;
+  displayColor: string;
+  screenAngle: number;
+  artworkZones: ArtworkZone[];
+  initiallyActive: boolean;
+  targetDensity: number;
+};
 
 export type InkChannelSettings = {
   aniloxVolume: number;
@@ -49,17 +56,14 @@ export type AniloxPreset = {
   volume: number;
 };
 
-export type Registration = Record<RegistrationKey, number>;
-
 export type PressSettings = Record<PressSettingKey, number> & {
   substrate: SubstrateId;
-  registration: Registration;
-  inkChannels: Record<InkChannelKey, InkChannelSettings>;
+  registration: Record<ChannelId, RegistrationOffset>;
+  inkChannels: Record<ChannelId, InkChannelSettings>;
 };
 
 export type JobTarget = {
   density: number;
-  channelTargetDensity: Record<InkChannelKey, number>;
   gain: number;
   dryingCapacity: number;
   tension: number;
@@ -74,6 +78,7 @@ export type JobPreset = {
   name: string;
   description: string;
   substrateOptions: SubstrateId[];
+  channels: ChannelDef[];
   ranges: Record<PressSettingKey, SettingRange>;
   inkChannelRanges: {
     aniloxVolume: SettingRange;
@@ -96,8 +101,8 @@ export type DefectSeverity = {
 export type SimulationOutcome = {
   density: number;
   gain: number;
-  channelDensity: Record<InkChannelKey, number>;
-  channelGain: Record<InkChannelKey, number>;
+  channelDensity: Record<ChannelId, number>;
+  channelGain: Record<ChannelId, number>;
   registerError: number;
   dryingRisk: number;
   wasteRate: number;
