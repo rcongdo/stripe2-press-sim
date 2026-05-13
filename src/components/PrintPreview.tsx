@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PressSettings, Registration, SimulationOutcome } from "../domain/types";
 
 type PrintPreviewProps = {
@@ -12,6 +12,8 @@ const PITCH = 12;
 const MIL_TO_PX = 4;
 const MIN_PLATE_ALPHA = 0.25;
 const POUCH_ORIGINS = [10, 310, 610] as const;
+const ZOOM_LEVELS = [0.5, 1, 2, 4] as const;
+type ZoomLevel = (typeof ZOOM_LEVELS)[number];
 
 type Zone = { x: number; y: number; w: number; h: number };
 
@@ -195,6 +197,8 @@ function drawPlate(
 
 export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [zoom, setZoom] = useState<ZoomLevel>(1);
+  const zoomIdx = ZOOM_LEVELS.indexOf(zoom);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -314,13 +318,35 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
     <section className="print-preview" aria-label="Live print sample">
       <div className="print-preview__header">
         <span>Live print sample</span>
+        <div className="zoom-controls">
+          <button
+            type="button"
+            className="secondary-button zoom-btn"
+            aria-label="Zoom out"
+            disabled={zoomIdx === 0}
+            onClick={() => setZoom(ZOOM_LEVELS[zoomIdx - 1])}
+          >−</button>
+          <span className="zoom-label">{zoom}×</span>
+          <button
+            type="button"
+            className="secondary-button zoom-btn"
+            aria-label="Zoom in"
+            disabled={zoomIdx === ZOOM_LEVELS.length - 1}
+            onClick={() => setZoom(ZOOM_LEVELS[zoomIdx + 1])}
+          >+</button>
+        </div>
         <strong>{outcome.setupQuality}% setup quality</strong>
       </div>
       <canvas
         ref={canvasRef}
         width={W}
         height={H}
-        style={{ width: "100%", display: "block" }}
+        style={{
+          width: W * zoom,
+          height: H * zoom,
+          display: "block",
+          imageRendering: zoom > 1 ? "pixelated" : "auto",
+        }}
         aria-label="Simulated flexible packaging web"
         data-testid="print-canvas"
       />

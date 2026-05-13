@@ -144,6 +144,7 @@ h3 {
 
 .print-preview {
   padding: 16px;
+  overflow: auto;
 }
 
 .print-preview__header,
@@ -324,4 +325,26 @@ h3 {
 .reg-dpad__center {
   width: 40px;
   height: 40px;
+}
+
+/* Zoom controls */
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.zoom-btn {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.zoom-label {
+  min-width: 36px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #53616d;
 }
