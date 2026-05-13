@@ -42,6 +42,41 @@ const ZONE_GRAPHIC   = 1;
 const ZONE_FLAVOR    = 2;
 const ZONE_NUTRITION = 3;
 
+// UPC-A barcode constants (all in internal canvas pixels)
+const BC_MODULE  = 6;               // module width
+const BC_QUIET   = 9 * BC_MODULE;   // quiet zone each side (54px)
+const BC_BAR_H   = 76;              // normal bar height
+const BC_GUARD_H = 96;              // guard bar height
+const BC_NUM_H   = 28;              // digit-number area height
+const BC_PAD     = 12;              // padding inside white box
+const BC_BOX_W   = 95 * BC_MODULE + 2 * BC_QUIET + 2 * BC_PAD;  // 702px
+const BC_BOX_H   = BC_GUARD_H + BC_NUM_H + 2 * BC_PAD;          // 148px
+
+// Barcode position within each pouch (natural / non-registered coordinates)
+const BC_BOX_X = Math.round((POUCH_W - BC_BOX_W) / 2);           // centered horizontally
+// Placed near the bottom of the nutrition zone
+const BC_BOX_Y = ZONES[ZONE_NUTRITION].y + ZONES[ZONE_NUTRITION].h - BC_BOX_H - 12;
+
+// UPC-A encoding tables
+const L_CODES: Record<string, string> = {
+  "0":"0001101","1":"0011001","2":"0010011","3":"0111101",
+  "4":"0100011","5":"0110001","6":"0101111","7":"0111011",
+  "8":"0110111","9":"0001011",
+};
+const R_CODES: Record<string, string> = {
+  "0":"1110010","1":"1100110","2":"1101100","3":"1000010",
+  "4":"1011100","5":"1001110","6":"1010000","7":"1000100",
+  "8":"1001000","9":"1110100",
+};
+const BC_DIGITS = "012345678905";
+const BC_PATTERN = (
+  "101" +
+  BC_DIGITS.slice(0,6).split("").map(c => L_CODES[c]).join("") +
+  "01010" +
+  BC_DIGITS.slice(6,12).split("").map(c => R_CODES[c]).join("") +
+  "101"
+); // 95 modules total
+
 
 const SCREEN_ANGLE: Record<"C" | "M" | "Y" | "K", number> = {
   C: (15 * Math.PI) / 180,
@@ -107,26 +142,15 @@ function drawArtworkForChannel(
   const fz = ZONES[ZONE_FLAVOR];
   const nz = ZONES[ZONE_NUTRITION];
 
+  // source-over so ink is placed correctly on the transparent offscreen canvas
   ctx.save();
-  ctx.globalCompositeOperation = "multiply";
+  ctx.globalCompositeOperation = "source-over";
   ctx.fillStyle = INK_COLOR[channel];
 
-  // Evenodd clip: (pouch + bleed) minus the reversed-text knockout holes.
-  // Holes are placed at text_pos + regOffset in canvas-native coords so they
-  // shift with this channel's plate — exposing ink fringe when mis-registered.
   ctx.save();
-  ctx.font = `900 ${34 * SCALE}px Inter, sans-serif`;
-  ctx.textBaseline = "middle";
-  const summitHW = ctx.measureText("SUMMIT").width / 2 + 2 * SCALE;
-  const summitHH = 22 * SCALE;
-  ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
-  const alpineHW = ctx.measureText("ALPINE CLASSIC CRUNCH").width / 2 + 2 * SCALE;
-  const alpineHH = 8 * SCALE;
   ctx.beginPath();
   ctx.rect(pouchX - 2 * MIL_TO_PX, POUCH_TOP - 2 * MIL_TO_PX, POUCH_W + 4 * MIL_TO_PX, POUCH_H + 4 * MIL_TO_PX);
-  ctx.rect(pouchX + POUCH_W / 2 - summitHW + regX, hz.y + hz.h * 0.48 - summitHH + regY, summitHW * 2, summitHH * 2);
-  ctx.rect(pouchX + POUCH_W / 2 - alpineHW + regX, fz.y + fz.h / 2 - alpineHH + regY, alpineHW * 2, alpineHH * 2);
-  ctx.clip("evenodd");
+  ctx.clip();
   ctx.translate(regX, regY);
 
   function fi(art: ArtCmyk, drawFn: () => void) {
@@ -177,16 +201,30 @@ function drawArtworkForChannel(
   // Nutrition bar
   fi(ART_NUTRITION_BG, () => ctx.fillRect(pouchX + nz.x, nz.y, nz.w, nz.h));
 
-  // Nutrition text (dark brown positive text)
+  // Nutrition text (dark brown positive text) — moved up to clear barcode box
   fi(ART_BROWN_TEXT, () => {
     ctx.font = `${9 * SCALE}px Inter, sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText(
       "NET WT 2.5 OZ (70g)  •  GLUTEN FREE  •  NON-GMO",
       pouchX + POUCH_W / 2,
-      nz.y + 40 * SCALE,
+      nz.y + 14 * SCALE,
     );
   });
+
+  // Reversed-text knockout: destination-out erases actual glyph-shaped pixels.
+  // Inside translate so the hole shifts with this channel's registration offset —
+  // misregistered channels expose a colored fringe at the text edges.
+  ctx.save();
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.globalAlpha = 1;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `900 ${34 * SCALE}px Inter, sans-serif`;
+  ctx.fillText("SUMMIT", pouchX + POUCH_W / 2, hz.y + hz.h * 0.48);
+  ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
+  ctx.fillText("ALPINE CLASSIC CRUNCH", pouchX + POUCH_W / 2, fz.y + fz.h / 2);
+  ctx.restore();
 
   ctx.restore(); // pop translate + clip
   ctx.restore(); // pop compositeOperation
@@ -212,25 +250,15 @@ function drawPlate(
   const nz = ZONES[ZONE_NUTRITION];
 
   ctx.save();
-  ctx.globalCompositeOperation = "multiply";
+  ctx.globalCompositeOperation = "source-over";
   ctx.fillStyle = INK_COLOR[channel];
   ctx.globalAlpha = baseAlpha;
 
-  // Evenodd clip: (pouch + bleed) minus the reversed-text knockout holes at this channel's offset.
   ctx.save();
-  ctx.font = `900 ${34 * SCALE}px Inter, sans-serif`;
-  ctx.textBaseline = "middle";
-  const summitHW = ctx.measureText("SUMMIT").width / 2 + 2 * SCALE;
-  const summitHH = 22 * SCALE;
-  ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
-  const alpineHW = ctx.measureText("ALPINE CLASSIC CRUNCH").width / 2 + 2 * SCALE;
-  const alpineHH = 8 * SCALE;
   const REG_BLEED = 3 * MIL_TO_PX;
   ctx.beginPath();
   ctx.rect(pouchX - REG_BLEED, POUCH_TOP - REG_BLEED, POUCH_W + REG_BLEED * 2, POUCH_H + REG_BLEED * 2);
-  ctx.rect(pouchX + POUCH_W / 2 - summitHW + regX, hz.y + hz.h * 0.48 - summitHH + regY, summitHW * 2, summitHH * 2);
-  ctx.rect(pouchX + POUCH_W / 2 - alpineHW + regX, fz.y + fz.h / 2 - alpineHH + regY, alpineHW * 2, alpineHH * 2);
-  ctx.clip("evenodd");
+  ctx.clip();
   ctx.translate(regX, regY);
 
   // Draw halftone dots clipped to an arbitrary path. buildPath must leave an open path.
@@ -314,7 +342,7 @@ function drawPlate(
   // Nutrition bar
   dotsInRect(ART_NUTRITION_BG, pouchX + nz.x, nz.y, nz.w, nz.h);
 
-  // Nutrition text — solid fill at this scale
+  // Nutrition text — solid fill at this scale, moved up to clear barcode box
   {
     const a = Math.min(1, ART_BROWN_TEXT[channel] * densityScale);
     if (a >= 0.005) {
@@ -325,11 +353,23 @@ function drawPlate(
       ctx.fillText(
         "NET WT 2.5 OZ (70g)  •  GLUTEN FREE  •  NON-GMO",
         pouchX + POUCH_W / 2,
-        nz.y + 40 * SCALE,
+        nz.y + 14 * SCALE,
       );
       ctx.restore();
     }
   }
+
+  // Reversed-text knockout — glyph-shaped destination-out, shifts with this channel's reg
+  ctx.save();
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.globalAlpha = 1;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `900 ${34 * SCALE}px Inter, sans-serif`;
+  ctx.fillText("SUMMIT", pouchX + POUCH_W / 2, hz.y + hz.h * 0.48);
+  ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
+  ctx.fillText("ALPINE CLASSIC CRUNCH", pouchX + POUCH_W / 2, fz.y + fz.h / 2);
+  ctx.restore();
 
   ctx.restore();
   ctx.restore();
@@ -343,6 +383,8 @@ const CH_COLORS: Record<"C" | "M" | "Y" | "K", string> = {
 export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  // Reused offscreen canvas for per-channel compositing (avoids per-frame allocation)
+  const offscreenRef = useRef<OffscreenCanvas | null>(null);
   const [zoom, setZoom] = useState<ZoomLevel>(1);
   const zoomIdx = ZOOM_LEVELS.indexOf(zoom);
   const showDots = zoom === 4;
@@ -410,20 +452,79 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
       ctx.roundRect(4 * SCALE, 4 * SCALE, W_CANVAS - 8 * SCALE, H_CANVAS - 8 * SCALE, 6 * SCALE);
       ctx.fill();
 
-      // CMYK channels in standard print order: Y → M → C → K
-      // 1×: draw artwork as proper CMYK separation (channel isolation works correctly)
-      // 4×: draw halftone dot grid only
-      for (const pouchX of POUCH_ORIGINS) {
-        for (const ch of ["Y", "M", "C", "K"] as const) {
-          if (!channelVisible[ch]) continue;
+      // Per-channel offscreen compositing: draw each channel to a transparent offscreen,
+      // erase knockout areas with destination-out (giving true glyph-shaped holes),
+      // then composite onto main with multiply. This prevents each channel's knockout
+      // from overwriting ink already contributed by other channels.
+      if (!offscreenRef.current) {
+        offscreenRef.current = new OffscreenCanvas(W_CANVAS, H_CANVAS);
+      }
+      const offscreen = offscreenRef.current;
+      const offCtx = offscreen.getContext("2d")!;
+
+      for (const ch of ["Y", "M", "C", "K"] as const) {
+        if (!channelVisible[ch]) continue;
+        offCtx.clearRect(0, 0, W_CANVAS, H_CANVAS);
+
+        for (const pouchX of POUCH_ORIGINS) {
           const regX = settings.registration[REG_KEYS[ch].x] * MIL_TO_PX;
           const regY = settings.registration[REG_KEYS[ch].y] * MIL_TO_PX;
           if (showDots) {
-            drawPlate(ctx, ch, pouchX, regX, regY, outcome.channelGain[ch], outcome.channelDensity[ch]);
+            drawPlate(offCtx as unknown as CanvasRenderingContext2D, ch, pouchX, regX, regY, outcome.channelGain[ch], outcome.channelDensity[ch]);
           } else {
-            drawArtworkForChannel(ctx, ch, pouchX, regX, regY, outcome.channelDensity[ch]);
+            drawArtworkForChannel(offCtx as unknown as CanvasRenderingContext2D, ch, pouchX, regX, regY, outcome.channelDensity[ch]);
           }
         }
+
+        // Barcode box knockout at natural position (not shifted by registration).
+        // All channels clear this area so the white substrate shows through as the box background.
+        offCtx.save();
+        offCtx.globalCompositeOperation = "destination-out";
+        offCtx.globalAlpha = 1;
+        for (const pouchX of POUCH_ORIGINS) {
+          offCtx.fillRect(pouchX + BC_BOX_X, BC_BOX_Y, BC_BOX_W, BC_BOX_H);
+        }
+        offCtx.restore();
+
+        // K channel only: draw barcode bars shifted by K's registration offset
+        if (ch === "K") {
+          const kRegX = settings.registration[REG_KEYS.K.x] * MIL_TO_PX;
+          const kRegY = settings.registration[REG_KEYS.K.y] * MIL_TO_PX;
+          const kAlpha = Math.min(1, Math.max(MIN_PLATE_ALPHA, outcome.channelDensity.K / CH_TARGET_DENSITY.K));
+          offCtx.save();
+          offCtx.globalCompositeOperation = "source-over";
+          offCtx.fillStyle = INK_COLOR.K;
+          offCtx.globalAlpha = kAlpha;
+          for (const pouchX of POUCH_ORIGINS) {
+            const bx = pouchX + BC_BOX_X + BC_PAD + BC_QUIET + kRegX;
+            const by = BC_BOX_Y + BC_PAD + kRegY;
+            for (let i = 0; i < BC_PATTERN.length; i++) {
+              if (BC_PATTERN[i] === "1") {
+                const isGuard = i < 3 || (i >= 45 && i <= 49) || i >= 92;
+                offCtx.fillRect(bx + i * BC_MODULE, by, BC_MODULE, isGuard ? BC_GUARD_H : BC_BAR_H);
+              }
+            }
+            // Digit numbers below bars
+            offCtx.save();
+            offCtx.globalAlpha = kAlpha;
+            offCtx.font = `${5 * SCALE}px Inter, sans-serif`;
+            offCtx.textAlign = "center";
+            offCtx.textBaseline = "top";
+            const numY = by + BC_GUARD_H + 2;
+            const leftCX  = bx + 3 * BC_MODULE + (42 * BC_MODULE) / 2;
+            const rightCX = bx + (3 + 42 + 5) * BC_MODULE + (42 * BC_MODULE) / 2;
+            offCtx.fillText(BC_DIGITS.slice(0, 6),  leftCX,  numY);
+            offCtx.fillText(BC_DIGITS.slice(6, 12), rightCX, numY);
+            offCtx.restore();
+          }
+          offCtx.restore();
+        }
+
+        // Composite this channel onto the main canvas using multiply blend
+        ctx.save();
+        ctx.globalCompositeOperation = "multiply";
+        ctx.drawImage(offscreen, 0, 0);
+        ctx.restore();
       }
 
       // Die-cut outlines drawn last so they sit on top of any bleeding dots
