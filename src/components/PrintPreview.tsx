@@ -239,7 +239,7 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
         for (const ch of ["Y", "M", "C", "K"] as const) {
           const regX = settings.registration[REG_KEYS[ch].x] * MIL_TO_PX;
           const regY = settings.registration[REG_KEYS[ch].y] * MIL_TO_PX;
-          drawPlate(ctx, ch, pouchX, regX, regY, outcome.gain, outcome.density);
+          drawPlate(ctx, ch, pouchX, regX, regY, outcome.channelGain[ch], outcome.channelDensity[ch]);
         }
       }
 
