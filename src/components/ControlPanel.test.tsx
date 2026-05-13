@@ -1,17 +1,18 @@
 import { within, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { starterJob } from "../domain/jobs";
-import { createInitialSettings } from "../domain/settings";
+import { snackPouchJob } from "../domain/jobs";
+import { activateSpotChannel, createInitialSettings } from "../domain/settings";
 import { ControlPanel } from "./ControlPanel";
 
 function makeProps(overrides: Partial<Parameters<typeof ControlPanel>[0]> = {}) {
   return {
-    job: starterJob,
-    settings: createInitialSettings(starterJob),
+    job: snackPouchJob,
+    settings: createInitialSettings(snackPouchJob),
     mode: "guided" as const,
     onSettingChange: vi.fn(),
     onRegistrationChange: vi.fn(),
     onInkChannelChange: vi.fn(),
+    onSpotChannelToggle: vi.fn(),
     ...overrides,
   };
 }
@@ -52,8 +53,8 @@ describe("ControlPanel — registration dpad", () => {
     fireEvent.click(within(inkGroup).getByRole("button", { name: /cyan/i }));
     fireEvent.click(screen.getByRole("button", { name: /right/i }));
     expect(onRegistrationChange).toHaveBeenCalledWith(
-      "cyanX",
-      expect.closeTo(createInitialSettings(starterJob).registration.cyanX + 0.1, 5),
+      "C",
+      expect.objectContaining({ x: expect.closeTo(createInitialSettings(snackPouchJob).registration.C.x + 0.1, 5) }),
     );
   });
 
@@ -64,8 +65,8 @@ describe("ControlPanel — registration dpad", () => {
     fireEvent.click(within(inkGroup).getByRole("button", { name: /cyan/i }));
     fireEvent.click(screen.getByRole("button", { name: /up/i }));
     expect(onRegistrationChange).toHaveBeenCalledWith(
-      "cyanY",
-      expect.closeTo(createInitialSettings(starterJob).registration.cyanY - 0.1, 5),
+      "C",
+      expect.objectContaining({ y: expect.closeTo(createInitialSettings(snackPouchJob).registration.C.y - 0.1, 5) }),
     );
   });
 
@@ -76,8 +77,8 @@ describe("ControlPanel — registration dpad", () => {
     fireEvent.click(within(inkGroup).getByRole("button", { name: /magenta/i }));
     fireEvent.click(screen.getByRole("button", { name: /right/i }));
     expect(onRegistrationChange).toHaveBeenCalledWith(
-      "magentaX",
-      expect.closeTo(createInitialSettings(starterJob).registration.magentaX + 0.1, 5),
+      "M",
+      expect.objectContaining({ x: expect.closeTo(createInitialSettings(snackPouchJob).registration.M.x + 0.1, 5) }),
     );
   });
 
@@ -87,15 +88,15 @@ describe("ControlPanel — registration dpad", () => {
       <ControlPanel
         {...makeProps({
           settings: {
-            ...createInitialSettings(starterJob),
-            registration: { ...createInitialSettings(starterJob).registration, cyanX: 4 },
+            ...createInitialSettings(snackPouchJob),
+            registration: { ...createInitialSettings(snackPouchJob).registration, C: { x: 4, y: 0 } },
           },
           onRegistrationChange,
         })}
       />
     );
     fireEvent.click(screen.getByRole("button", { name: /right/i }));
-    expect(onRegistrationChange).toHaveBeenCalledWith("cyanX", 4);
+    expect(onRegistrationChange).toHaveBeenCalledWith("C", expect.objectContaining({ x: 4 }));
   });
 });
 
@@ -125,5 +126,36 @@ describe("ControlPanel — ink sliders", () => {
       target: { value: "60" },
     });
     expect(onInkChannelChange).toHaveBeenCalledWith("M", "impression", 60);
+  });
+});
+
+describe("ControlPanel — spot channels", () => {
+  it("shows Add buttons for inactive spot channels", () => {
+    render(<ControlPanel {...makeProps()} />);
+    expect(screen.getByRole("button", { name: /add pantone 021 orange/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /add metallic silver/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /add opaque white/i })).toBeInTheDocument();
+  });
+
+  it("calls onSpotChannelToggle(channelId, true) when Add is clicked", () => {
+    const onSpotChannelToggle = vi.fn();
+    render(<ControlPanel {...makeProps({ onSpotChannelToggle })} />);
+    fireEvent.click(screen.getByRole("button", { name: /add pantone 021 orange/i }));
+    expect(onSpotChannelToggle).toHaveBeenCalledWith("orange", true);
+  });
+
+  it("shows Remove button for an active spot channel", () => {
+    const settings = activateSpotChannel(snackPouchJob, createInitialSettings(snackPouchJob), "orange");
+    render(<ControlPanel {...makeProps({ settings })} />);
+    expect(screen.getByRole("button", { name: /remove pantone 021 orange/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /add pantone 021 orange/i })).not.toBeInTheDocument();
+  });
+
+  it("calls onSpotChannelToggle(channelId, false) when Remove is clicked", () => {
+    const onSpotChannelToggle = vi.fn();
+    const settings = activateSpotChannel(snackPouchJob, createInitialSettings(snackPouchJob), "orange");
+    render(<ControlPanel {...makeProps({ settings, onSpotChannelToggle })} />);
+    fireEvent.click(screen.getByRole("button", { name: /remove pantone 021 orange/i }));
+    expect(onSpotChannelToggle).toHaveBeenCalledWith("orange", false);
   });
 });

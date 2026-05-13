@@ -506,3 +506,38 @@ h3 {
   font-weight: 700;
   color: #53616d;
 }
+
+/* Spot channel add/remove buttons */
+.spot-add-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.spot-add-btn,
+.spot-remove-btn {
+  width: 100%;
+  font-size: 0.82rem;
+  min-height: 34px;
+  text-align: left;
+}
+
+.spot-remove-btn {
+  margin-bottom: 10px;
+  color: #8b2020;
+  border-color: #e8c0c0;
+}
+
+/* Job selector */
+.job-selector {
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid #cbd5dd;
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
