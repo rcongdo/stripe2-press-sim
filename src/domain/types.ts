@@ -3,9 +3,6 @@ export type SubstrateId = "pet-film" | "opp-film" | "paper-laminate";
 export type PressSettingKey =
   | "aniloxVolume"
   | "aniloxLineScreen"
-  | "inkViscosity"
-  | "inkStrength"
-  | "impression"
   | "webTension"
   | "dryerTemperature"
   | "pressSpeed";

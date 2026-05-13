@@ -1,0 +1,19 @@
+0 verbose cli /Users/robertcongdon/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node /private/tmp/npm-cli-10.9.4-55632/bin/npm-cli.js
+1 info using npm@10.9.4
+2 info using node@v24.14.0
+3 silly config load:file:/private/tmp/npm-cli-10.9.4-55632/npmrc
+4 silly config load:file:/Users/robertcongdon/Documents/Codex/2026-05-12/i-want-to-build-a-flexographic/.npmrc
+5 silly config load:file:/Users/robertcongdon/.npmrc
+6 silly config load:file:/Users/robertcongdon/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/etc/npmrc
+7 verbose title npm test src/domain/settings.test.ts
+8 verbose argv "test" "--" "src/domain/settings.test.ts"
+9 verbose logfile logs-max:10 dir:/Users/robertcongdon/Documents/Codex/2026-05-12/i-want-to-build-a-flexographic/.npm-cache/_logs/2026-05-12T21_21_13_675Z-
+10 verbose logfile /Users/robertcongdon/Documents/Codex/2026-05-12/i-want-to-build-a-flexographic/.npm-cache/_logs/2026-05-12T21_21_13_675Z-debug-0.log
+11 silly logfile start cleaning logs, removing 1 files
+12 silly logfile done cleaning log files
+13 verbose cwd /Users/robertcongdon/Documents/Codex/2026-05-12/i-want-to-build-a-flexographic
+14 verbose os Darwin 25.3.0
+15 verbose node v24.14.0
+16 verbose npm  v10.9.4
+17 verbose exit 0
+18 info ok

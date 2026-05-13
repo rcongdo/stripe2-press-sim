@@ -26,14 +26,7 @@ const colorSwatches: Record<ColorName, string> = {
   black:   "#202124",
 };
 
-const sliderKeys: PressSettingKey[] = [
-  "inkViscosity",
-  "inkStrength",
-  "impression",
-  "webTension",
-  "dryerTemperature",
-  "pressSpeed",
-];
+const sliderKeys: PressSettingKey[] = ["webTension", "dryerTemperature", "pressSpeed"];
 
 export function ControlPanel({
   job,

@@ -1,0 +1,59 @@
+0 verbose cli /Users/robertcongdon/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node /private/tmp/npm-cli-10.9.4-55632/bin/npm-cli.js
+1 info using npm@10.9.4
+2 info using node@v24.14.0
+3 silly config load:file:/private/tmp/npm-cli-10.9.4-55632/npmrc
+4 silly config load:file:/Users/robertcongdon/Documents/Codex/2026-05-12/i-want-to-build-a-flexographic/.npmrc
+5 silly config load:file:/Users/robertcongdon/.npmrc
+6 silly config load:file:/Users/robertcongdon/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/etc/npmrc
+7 verbose title npm install
+8 verbose argv "install"
+9 verbose logfile logs-max:10 dir:/Users/robertcongdon/Documents/Codex/2026-05-12/i-want-to-build-a-flexographic/.npm-cache/_logs/2026-05-12T21_14_12_620Z-
+10 verbose logfile /Users/robertcongdon/Documents/Codex/2026-05-12/i-want-to-build-a-flexographic/.npm-cache/_logs/2026-05-12T21_14_12_620Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+13 silly idealTree buildDeps
+14 silly fetch manifest @types/node@^22.0.0
+15 silly packumentCache full:https://registry.npmjs.org/@types%2fnode cache-miss
+16 http fetch GET https://registry.npmjs.org/@types%2fnode attempt 1 failed with ENOTFOUND
+17 http fetch GET https://registry.npmjs.org/@types%2fnode attempt 2 failed with ENOTFOUND
+18 http fetch GET https://registry.npmjs.org/@types%2fnode attempt 3 failed with ENOTFOUND
+19 http fetch GET 200 https://registry.npmjs.org/@types%2fnode 70071ms (cache stale)
+20 silly packumentCache full:https://registry.npmjs.org/@types%2fnode set size:11004479 disposed:false
+21 silly placeDep ROOT @types/node@22.19.19 OK for: flexographic-press-simulator@0.1.0 want: ^22.0.0
+22 silly fetch manifest undici-types@~6.21.0
+23 silly packumentCache full:https://registry.npmjs.org/undici-types cache-miss
+24 http fetch GET https://registry.npmjs.org/undici-types attempt 1 failed with ENOTFOUND
+25 http fetch GET https://registry.npmjs.org/undici-types attempt 2 failed with ENOTFOUND
+26 http fetch GET https://registry.npmjs.org/undici-types attempt 3 failed with ENOTFOUND
+27 silly fetch manifest undici-types@~6.21.0
+28 silly packumentCache full:https://registry.npmjs.org/undici-types cache-miss
+29 http fetch GET https://registry.npmjs.org/undici-types attempt 1 failed with ENOTFOUND
+30 http fetch GET https://registry.npmjs.org/undici-types attempt 2 failed with ENOTFOUND
+31 http fetch GET https://registry.npmjs.org/undici-types attempt 3 failed with ENOTFOUND
+32 silly placeDep node_modules/@types/node undici-types@ OK for: @types/node@22.19.19 want: ~6.21.0
+33 verbose type system
+34 verbose stack FetchError: request to https://registry.npmjs.org/undici-types failed, reason: getaddrinfo ENOTFOUND registry.npmjs.org
+34 verbose stack     at ClientRequest.<anonymous> (/private/tmp/npm-cli-10.9.4-55632/node_modules/minipass-fetch/lib/index.js:130:14)
+34 verbose stack     at ClientRequest.emit (node:events:508:28)
+34 verbose stack     at emitErrorEvent (node:_http_client:108:11)
+34 verbose stack     at _destroy (node:_http_client:963:9)
+34 verbose stack     at onSocketNT (node:_http_client:983:5)
+34 verbose stack     at process.processTicksAndRejections (node:internal/process/task_queues:91:21)
+35 error code ENOTFOUND
+36 error syscall getaddrinfo
+37 error errno ENOTFOUND
+38 error network request to https://registry.npmjs.org/undici-types failed, reason: getaddrinfo ENOTFOUND registry.npmjs.org
+39 error network This is a problem related to network connectivity.
+39 error network In most cases you are behind a proxy or have bad network settings.
+39 error network
+39 error network If you are behind a proxy, please make sure that the
+39 error network 'proxy' config is set properly.  See: 'npm help config'
+40 silly unfinished npm timer reify 1778620452897
+41 silly unfinished npm timer reify:loadTrees 1778620452897
+42 verbose cwd /Users/robertcongdon/Documents/Codex/2026-05-12/i-want-to-build-a-flexographic
+43 verbose os Darwin 25.3.0
+44 verbose node v24.14.0
+45 verbose npm  v10.9.4
+46 verbose exit 1
+47 verbose code 1
+48 error A complete log of this run can be found in: /Users/robertcongdon/Documents/Codex/2026-05-12/i-want-to-build-a-flexographic/.npm-cache/_logs/2026-05-12T21_14_12_620Z-debug-0.log

@@ -8,34 +8,34 @@ describe("press setting helpers", () => {
 
     expect(settings).not.toBe(starterJob.initialSettings);
     expect(settings.registration).not.toBe(starterJob.initialSettings.registration);
-    expect(settings.impression).toBe(67);
+    expect(settings.inkChannels.C.impression).toBe(67);
     expect(settings.pressSpeed).toBe(760);
     expect(settings.registration.cyanX).toBe(-1.4);
   });
 
   it("clamps numeric settings to their configured range", () => {
-    expect(clampSetting(starterJob, "impression", 120)).toBe(100);
+    expect(clampSetting(starterJob, "webTension", 200)).toBe(80);
     expect(clampSetting(starterJob, "pressSpeed", 100)).toBe(300);
   });
 
   it("returns the setting minimum for non-finite numeric settings", () => {
-    expect(clampSetting(starterJob, "impression", Number.NaN)).toBe(0);
+    expect(clampSetting(starterJob, "webTension", Number.NaN)).toBe(20);
   });
 
   it("updates settings without mutating the original object", () => {
     const original = createInitialSettings(starterJob);
-    const updated = updateSetting(starterJob, original, "inkViscosity", 42);
+    const updated = updateSetting(starterJob, original, "webTension", 60);
 
     expect(updated).not.toBe(original);
-    expect(updated.inkViscosity).toBe(42);
-    expect(original.inkViscosity).toBe(31);
+    expect(updated.webTension).toBe(60);
+    expect(original.webTension).toBe(38);
   });
 
   it("clamps updated settings to their configured range", () => {
     const original = createInitialSettings(starterJob);
-    const updated = updateSetting(starterJob, original, "impression", 120);
+    const updated = updateSetting(starterJob, original, "webTension", 200);
 
-    expect(updated.impression).toBe(100);
+    expect(updated.webTension).toBe(80);
   });
 });
 

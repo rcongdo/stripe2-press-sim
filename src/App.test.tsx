@@ -4,12 +4,12 @@ import { describe, expect, it } from "vitest";
 import App from "./App";
 
 describe("App", () => {
-  it("updates metrics when the learner changes impression", async () => {
+  it("updates metrics when the learner changes press speed", async () => {
     render(<App />);
 
     const qualityBefore = screen.getByText("Setup quality").nextElementSibling?.textContent;
-    const impression = screen.getByLabelText(/Impression/i);
-    fireEvent.change(impression, { target: { value: "92" } });
+    const pressSpeed = screen.getByLabelText(/Press speed/i);
+    fireEvent.change(pressSpeed, { target: { value: "500" } });
 
     expect(screen.getByText("Setup quality").nextElementSibling?.textContent).not.toBe(qualityBefore);
   });
