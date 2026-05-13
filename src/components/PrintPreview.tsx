@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PressSettings, Registration, SimulationOutcome } from "../domain/types";
 
 type PrintPreviewProps = {
@@ -224,9 +224,48 @@ function drawPlate(
 
 export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState<ZoomLevel>(1);
   const zoomIdx = ZOOM_LEVELS.indexOf(zoom);
   const showDots = zoom === 4;
+
+  // Pan state (only active at 4×)
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const dragStart = useRef<{ mx: number; my: number; ox: number; oy: number } | null>(null);
+
+  // Reset pan when leaving 4×
+  useEffect(() => {
+    if (zoom !== 4) setPanOffset({ x: 0, y: 0 });
+  }, [zoom]);
+
+  const clampPan = useCallback((x: number, y: number, vpW: number, vpH: number) => {
+    const canvasW = W * 4;
+    const canvasH = H * 4;
+    return {
+      x: Math.min(0, Math.max(vpW - canvasW, x)),
+      y: Math.min(0, Math.max(vpH - canvasH, y)),
+    };
+  }, []);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (zoom !== 4) return;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragStart.current = { mx: e.clientX, my: e.clientY, ox: panOffset.x, oy: panOffset.y };
+  }, [zoom, panOffset]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragStart.current || zoom !== 4) return;
+    const dx = e.clientX - dragStart.current.mx;
+    const dy = e.clientY - dragStart.current.my;
+    const vp = viewportRef.current;
+    const vpW = vp ? vp.clientWidth : W;
+    const vpH = vp ? vp.clientHeight : H;
+    setPanOffset(clampPan(dragStart.current.ox + dx, dragStart.current.oy + dy, vpW, vpH));
+  }, [zoom, clampPan]);
+
+  const handlePointerUp = useCallback(() => {
+    dragStart.current = null;
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -381,18 +420,29 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
         </div>
         <strong>{outcome.setupQuality}% setup quality</strong>
       </div>
-      <canvas
-        ref={canvasRef}
-        width={W_CANVAS}
-        height={H_CANVAS}
-        style={{
-          width: W * zoom,
-          height: H * zoom,
-          display: "block",
-        }}
-        aria-label="Simulated flexible packaging web"
-        data-testid="print-canvas"
-      />
+      <div
+        ref={viewportRef}
+        className={`print-canvas-viewport${zoom === 4 ? " print-canvas-viewport--pan" : ""}`}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
+        <canvas
+          ref={canvasRef}
+          width={W_CANVAS}
+          height={H_CANVAS}
+          style={{
+            width: W * zoom,
+            height: H * zoom,
+            display: "block",
+            transform: zoom === 4 ? `translate(${panOffset.x}px, ${panOffset.y}px)` : undefined,
+            transformOrigin: "top left",
+          }}
+          aria-label="Simulated flexible packaging web"
+          data-testid="print-canvas"
+        />
+      </div>
     </section>
   );
 }
