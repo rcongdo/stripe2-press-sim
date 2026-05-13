@@ -427,11 +427,9 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
         }
       }
 
-      // Reversed-out text — punch substrate color back through all channel content (1× only)
-      if (!showDots) {
-        for (const pouchX of POUCH_ORIGINS) {
-          drawReversedText(ctx, pouchX);
-        }
+      // Reversed-out text — punch substrate color back through all channel content
+      for (const pouchX of POUCH_ORIGINS) {
+        drawReversedText(ctx, pouchX);
       }
 
       // Die-cut outlines drawn last so they sit on top of any bleeding dots
