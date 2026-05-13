@@ -26,8 +26,9 @@ export const starterJob: JobPreset = {
     impression:   { min: 0,   max: 100, step: 1,   unit: "%",   label: "Impression" },
   },
   target: {
-    density: 1,
-    gain: 0.18,
+    density: 1.35,
+    channelTargetDensity: { C: 1.4, M: 1.4, Y: 1.0, K: 1.6 },
+    gain: 0,
     dryingCapacity: 0.72,
     tension: 50,
     speed: 650,

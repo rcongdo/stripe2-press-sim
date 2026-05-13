@@ -51,9 +51,8 @@ export function ControlPanel({
   onInkChannelChange,
 }: ControlPanelProps) {
   const [selectedColor, setSelectedColor] = useState<ColorName>("cyan");
-  const [selectedInkColor, setSelectedInkColor] = useState<ColorName>("cyan");
 
-  const inkCh = inkChannelMap[selectedInkColor];
+  const inkCh = inkChannelMap[selectedColor];
   const inkCurrentPreset =
     aniloxPresets.find((p) => p.volume === settings.inkChannels[inkCh].aniloxVolume) ??
     aniloxPresets.find((p) => p.id === "heavy")!;
@@ -107,10 +106,10 @@ export function ControlPanel({
             <button
               key={color}
               type="button"
-              className={`reg-color-btn${selectedInkColor === color ? " reg-color-btn--active" : ""}`}
+              className={`reg-color-btn${selectedColor === color ? " reg-color-btn--active" : ""}`}
               style={{ "--swatch": colorSwatches[color] } as React.CSSProperties}
-              onClick={() => setSelectedInkColor(color)}
-              aria-pressed={selectedInkColor === color}
+              onClick={() => setSelectedColor(color)}
+              aria-pressed={selectedColor === color}
             >
               {color.charAt(0).toUpperCase() + color.slice(1)}
             </button>
@@ -155,24 +154,6 @@ export function ControlPanel({
             </label>
           );
         })}
-      </div>
-
-      <div className="control-group">
-        <h3>Registration</h3>
-        <div className="reg-colors" role="group" aria-label="Registration color">
-          {colorOrder.map((color) => (
-            <button
-              key={color}
-              type="button"
-              className={`reg-color-btn${selectedColor === color ? " reg-color-btn--active" : ""}`}
-              style={{ "--swatch": colorSwatches[color] } as React.CSSProperties}
-              onClick={() => setSelectedColor(color)}
-              aria-pressed={selectedColor === color}
-            >
-              {color.charAt(0).toUpperCase() + color.slice(1)}
-            </button>
-          ))}
-        </div>
         <div className="reg-readout">
           <span>X: <strong>{regX.toFixed(1)} mil</strong></span>
           <span>Y: <strong>{regY.toFixed(1)} mil</strong></span>

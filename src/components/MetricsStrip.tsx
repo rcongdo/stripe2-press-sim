@@ -34,16 +34,26 @@ export function MetricsStrip({ outcome }: MetricsStripProps) {
       </div>
 
       <div className="metric metric--channels">
-        <span>Density / Gain</span>
         <table className="channel-table">
+          <thead>
+            <tr>
+              <th />
+              <th className="ch-col-head">Density</th>
+              <th className="ch-col-head">SCTV</th>
+            </tr>
+          </thead>
           <tbody>
-            {CHANNELS.map((ch) => (
-              <tr key={ch}>
-                <td className="ch-swatch" style={{ color: CHANNEL_COLOR[ch] }}>{ch}</td>
-                <td className="ch-val">{outcome.channelDensity[ch].toFixed(2)}</td>
-                <td className="ch-val">{Math.round(outcome.channelGain[ch] * 100)}%</td>
-              </tr>
-            ))}
+            {CHANNELS.map((ch) => {
+              const sctv = Math.round(outcome.channelGain[ch] * 100);
+              const sctvStr = sctv > 0 ? `+${sctv}%` : `${sctv}%`;
+              return (
+                <tr key={ch}>
+                  <td className="ch-swatch" style={{ color: CHANNEL_COLOR[ch] }}>{ch}</td>
+                  <td className="ch-val">{outcome.channelDensity[ch].toFixed(2)}</td>
+                  <td className="ch-val">{sctvStr}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

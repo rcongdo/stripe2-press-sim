@@ -55,14 +55,15 @@ export function simulatePress(job: JobPreset, settings: PressSettings): Simulati
     // Viscosity contribution is relative to target — zero at target, positive above
     const viscosityDeltaCh  = (ink.viscosity / job.target.viscosity) - 1;
 
+    const targetDensityCh = job.target.channelTargetDensity[ch];
     channelDensity[ch] = Number(Math.max(
       0.35,
-      aniloxLoadCh * inkStrengthLoadCh * (1 - impressionLowCh * 0.42) + impressionHighCh * 0.08,
+      targetDensityCh * (aniloxLoadCh * inkStrengthLoadCh * (1 - impressionLowCh * 0.42) + impressionHighCh * 0.08),
     ).toFixed(2));
 
-    channelGain[ch] = Number(Math.max(
-      0.05,
-      job.target.gain + impressionHighCh * 0.34 + viscosityDeltaCh * 0.03,
+    // SCTV: 0% at ideal settings; positive = dot gain, negative = dot loss
+    channelGain[ch] = Number((
+      impressionHighCh * 0.34 - impressionLowCh * 0.15 + viscosityDeltaCh * 0.03
     ).toFixed(2));
 
     sumImpression   += ink.impression;
@@ -102,9 +103,14 @@ export function simulatePress(job: JobPreset, settings: PressSettings): Simulati
     edgeSquash: toSeverity(impressionHigh * 0.92),
   };
 
+  const channelDensityError = INK_CHANNELS.reduce(
+    (sum, ch) => sum + Math.abs(channelDensity[ch] - job.target.channelTargetDensity[ch]),
+    0,
+  ) / INK_CHANNELS.length;
+
   const penalties =
-    Math.abs(density - job.target.density) * 26 +
-    Math.abs(gain - job.target.gain) * 70 +
+    channelDensityError * 26 +
+    Math.abs(gain) * 70 +
     registerError * 8 +
     dryingRisk * 22 +
     tensionError * 10 +

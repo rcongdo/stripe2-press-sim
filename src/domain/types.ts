@@ -59,6 +59,7 @@ export type PressSettings = Record<PressSettingKey, number> & {
 
 export type JobTarget = {
   density: number;
+  channelTargetDensity: Record<InkChannelKey, number>;
   gain: number;
   dryingCapacity: number;
   tension: number;

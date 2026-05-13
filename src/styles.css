@@ -152,6 +152,16 @@ h3 {
   line-height: 1.5;
 }
 
+.ch-col-head {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #697784;
+  text-align: right;
+  padding: 0 4px 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .ch-swatch {
   font-weight: 800;
   font-size: 0.75rem;

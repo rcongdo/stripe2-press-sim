@@ -34,21 +34,21 @@ describe("ControlPanel — anilox dropdown", () => {
 });
 
 describe("ControlPanel — registration dpad", () => {
-  it("renders color selector buttons and no registration sliders", () => {
+  it("renders a single color selector group with dpad buttons and no separate registration sliders", () => {
     render(<ControlPanel {...makeProps()} />);
-    const regGroup = screen.getByRole("group", { name: "Registration color" });
-    expect(within(regGroup).getByRole("button", { name: /cyan/i })).toBeInTheDocument();
-    expect(within(regGroup).getByRole("button", { name: /magenta/i })).toBeInTheDocument();
-    expect(within(regGroup).getByRole("button", { name: /yellow/i })).toBeInTheDocument();
-    expect(within(regGroup).getByRole("button", { name: /black/i })).toBeInTheDocument();
+    const inkGroup = screen.getByRole("group", { name: "Ink color" });
+    expect(within(inkGroup).getByRole("button", { name: /cyan/i })).toBeInTheDocument();
+    expect(within(inkGroup).getByRole("button", { name: /magenta/i })).toBeInTheDocument();
+    expect(within(inkGroup).getByRole("button", { name: /yellow/i })).toBeInTheDocument();
+    expect(within(inkGroup).getByRole("button", { name: /black/i })).toBeInTheDocument();
     expect(screen.queryByLabelText("cyanX")).not.toBeInTheDocument();
   });
 
   it("nudges selected color X by +0.1 when right arrow is clicked", () => {
     const onRegistrationChange = vi.fn();
     render(<ControlPanel {...makeProps({ onRegistrationChange })} />);
-    const regGroup = screen.getByRole("group", { name: "Registration color" });
-    fireEvent.click(within(regGroup).getByRole("button", { name: /cyan/i }));
+    const inkGroup = screen.getByRole("group", { name: "Ink color" });
+    fireEvent.click(within(inkGroup).getByRole("button", { name: /cyan/i }));
     fireEvent.click(screen.getByRole("button", { name: /right/i }));
     expect(onRegistrationChange).toHaveBeenCalledWith(
       "cyanX",
@@ -59,8 +59,8 @@ describe("ControlPanel — registration dpad", () => {
   it("nudges selected color Y by -0.1 when up arrow is clicked", () => {
     const onRegistrationChange = vi.fn();
     render(<ControlPanel {...makeProps({ onRegistrationChange })} />);
-    const regGroup = screen.getByRole("group", { name: "Registration color" });
-    fireEvent.click(within(regGroup).getByRole("button", { name: /cyan/i }));
+    const inkGroup = screen.getByRole("group", { name: "Ink color" });
+    fireEvent.click(within(inkGroup).getByRole("button", { name: /cyan/i }));
     fireEvent.click(screen.getByRole("button", { name: /up/i }));
     expect(onRegistrationChange).toHaveBeenCalledWith(
       "cyanY",
@@ -71,8 +71,8 @@ describe("ControlPanel — registration dpad", () => {
   it("routes nudge to the correct key when a non-default color is selected", () => {
     const onRegistrationChange = vi.fn();
     render(<ControlPanel {...makeProps({ onRegistrationChange })} />);
-    const regGroup = screen.getByRole("group", { name: "Registration color" });
-    fireEvent.click(within(regGroup).getByRole("button", { name: /magenta/i }));
+    const inkGroup = screen.getByRole("group", { name: "Ink color" });
+    fireEvent.click(within(inkGroup).getByRole("button", { name: /magenta/i }));
     fireEvent.click(screen.getByRole("button", { name: /right/i }));
     expect(onRegistrationChange).toHaveBeenCalledWith(
       "magentaX",
@@ -115,7 +115,7 @@ describe("ControlPanel — ink sliders", () => {
     expect(onInkChannelChange).toHaveBeenCalledWith("C", "viscosity", 35);
   });
 
-  it("switching ink color changes the channel fired by onInkChannelChange", () => {
+  it("switching color changes the channel fired by onInkChannelChange", () => {
     const onInkChannelChange = vi.fn();
     render(<ControlPanel {...makeProps({ onInkChannelChange })} />);
     const inkGroup = screen.getByRole("group", { name: "Ink color" });
