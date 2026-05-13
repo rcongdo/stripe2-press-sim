@@ -177,6 +177,20 @@ function drawArtworkForChannel(
     );
   });
 
+  // Reversed-text knockout — inside translate so the hole shifts with this channel's registration.
+  // When mis-registered, the hole drifts off the text, letting this channel's ink bleed in.
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = "#fffdf8";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.globalAlpha = 1;
+  ctx.font = `900 ${34 * SCALE}px Inter, sans-serif`;
+  ctx.fillText("SUMMIT", pouchX + POUCH_W / 2, hz.y + hz.h * 0.48);
+  ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
+  ctx.fillText("ALPINE CLASSIC CRUNCH", pouchX + POUCH_W / 2, fz.y + fz.h / 2);
+  ctx.restore();
+
   ctx.restore(); // pop translate + clip
   ctx.restore(); // pop compositeOperation
 }
@@ -310,32 +324,23 @@ function drawPlate(
     }
   }
 
-  ctx.restore();
-  ctx.restore();
-}
-
-// Reversed-out text — areas where no ink is applied; substrate shows through.
-// Must be drawn AFTER all channel content using source-over to punch back to substrate color.
-function drawReversedText(ctx: CanvasRenderingContext2D, pouchX: number) {
-  const hz = ZONES[ZONE_HEADER];
-  const fz = ZONES[ZONE_FLAVOR];
-
+  // Reversed-text knockout — inside translate so the hole shifts with this channel's registration.
   ctx.save();
   ctx.globalCompositeOperation = "source-over";
   ctx.fillStyle = "#fffdf8";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-
-  // "SUMMIT" — large product name reversed out of the dark header background
+  ctx.globalAlpha = 1;
   ctx.font = `900 ${34 * SCALE}px Inter, sans-serif`;
   ctx.fillText("SUMMIT", pouchX + POUCH_W / 2, hz.y + hz.h * 0.48);
-
-  // "ALPINE CLASSIC CRUNCH" — reversed out of the amber flavor stripe
   ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
   ctx.fillText("ALPINE CLASSIC CRUNCH", pouchX + POUCH_W / 2, fz.y + fz.h / 2);
+  ctx.restore();
 
   ctx.restore();
+  ctx.restore();
 }
+
 
 const CH_COLORS: Record<"C" | "M" | "Y" | "K", string> = {
   C: "#00bef0", M: "#e0009a", Y: "#c89400", K: "#222",
@@ -425,11 +430,6 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
             drawArtworkForChannel(ctx, ch, pouchX, regX, regY, outcome.channelDensity[ch]);
           }
         }
-      }
-
-      // Reversed-out text — punch substrate color back through all channel content
-      for (const pouchX of POUCH_ORIGINS) {
-        drawReversedText(ctx, pouchX);
       }
 
       // Die-cut outlines drawn last so they sit on top of any bleeding dots
