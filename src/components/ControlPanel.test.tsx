@@ -8,6 +8,7 @@ function makeProps(overrides: Partial<Parameters<typeof ControlPanel>[0]> = {}) 
   return {
     job: starterJob,
     settings: createInitialSettings(starterJob),
+    mode: "guided" as const,
     onSettingChange: vi.fn(),
     onRegistrationChange: vi.fn(),
     onInkChannelChange: vi.fn(),

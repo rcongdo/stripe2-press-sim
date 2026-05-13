@@ -70,6 +70,7 @@ export default function App() {
         <ControlPanel
           job={starterJob}
           settings={settings}
+          mode={mode}
           onSettingChange={handleSettingChange}
           onRegistrationChange={handleRegistrationChange}
           onInkChannelChange={handleInkChannelChange}

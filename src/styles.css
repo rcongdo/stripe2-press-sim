@@ -449,6 +449,42 @@ h3 {
   height: 40px;
 }
 
+/* Info tooltip */
+.control-label-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.info-tip-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #8fa3b2;
+  font-size: 0.82rem;
+  cursor: help;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.info-tip-btn:hover {
+  color: #0f6b78;
+}
+
+.info-tip-popup {
+  position: fixed;
+  z-index: 200;
+  width: 220px;
+  background: #1a2530;
+  color: #e8edf1;
+  padding: 10px 12px;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+}
+
 /* Zoom controls */
 .zoom-controls {
   display: flex;

@@ -68,7 +68,6 @@ export function MetricsStrip({ outcome }: MetricsStripProps) {
         <div className="register-indicator">
           <span className="register-dot" style={{ background: reg.color }} />
           <strong style={{ color: reg.color }}>{reg.label}</strong>
-          <span className="register-sub">{outcome.registerError.toFixed(2)} mil</span>
         </div>
       </div>
     </section>

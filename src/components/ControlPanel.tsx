@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { aniloxPresets } from "../domain/jobs";
+import type { TrainingMode } from "../simulation/scoring";
 import type {
   InkChannelKey,
   InkChannelSettingKey,
@@ -12,6 +13,7 @@ import type {
 type ControlPanelProps = {
   job: JobPreset;
   settings: PressSettings;
+  mode: TrainingMode;
   onSettingChange: (key: PressSettingKey, value: number) => void;
   onRegistrationChange: (key: RegistrationKey, value: number) => void;
   onInkChannelChange: (channel: InkChannelKey, key: InkChannelSettingKey, value: number) => void;
@@ -43,13 +45,66 @@ const sliderKeys: PressSettingKey[] = ["webTension", "dryerTemperature", "pressS
 
 const inkSliderKeys: InkChannelSettingKey[] = ["viscosity", "strength", "impression"];
 
+const TIPS: Partial<Record<PressSettingKey | InkChannelSettingKey | "aniloxRoll" | "registration", string>> = {
+  webTension:
+    "Controls how tightly the substrate is pulled across the press. Too loose causes weaving and registration drift; too tight risks stretching or tearing, which distorts the printed image.",
+  dryerTemperature:
+    "Sets the temperature of the hot-air dryer that cures ink between stations. Too low leaves ink wet, causing smearing; too high can shrink or delaminate the substrate.",
+  pressSpeed:
+    "How fast the web travels through the press in feet per minute. Higher speeds boost output but give inks less time to transfer and dry, raising drying risk and often reducing density.",
+  aniloxRoll:
+    "The anilox is an engraved roller that meters a precise ink volume. A lighter cell (lower BCM) deposits less ink for fine work; a heavier cell floods more for solid coverage.",
+  viscosity:
+    "Ink viscosity controls flow. Lower viscosity inks transfer more readily and level out, improving dot smoothness. Higher viscosity keeps ink from flowing, preserving sharp detail on fine screens.",
+  strength:
+    "Pigment concentration. Higher strength gives rich color at lighter film weights; lower strength produces paler results that may need heavier ink deposits to hit density targets.",
+  impression:
+    "How hard the plate presses into the substrate. Too little gives weak, incomplete transfer; too much squeezes dots (dot gain), bridges highlights, and accelerates plate wear.",
+  registration:
+    "Aligns each color plate so all channels overprint correctly. Misregistration shows as color fringing along edges. Nudge the selected channel 0.1 mil per tap; aim for all channels within ±0.5 mil.",
+};
+
+function InfoTip({ text }: { text: string }) {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  function handleEnter() {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ top: r.top, left: r.right + 10 });
+    }
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        className="info-tip-btn"
+        aria-label="More information"
+        onMouseEnter={handleEnter}
+        onMouseLeave={() => setPos(null)}
+      >
+        ⓘ
+      </button>
+      {pos && (
+        <div className="info-tip-popup" style={{ top: pos.top, left: pos.left }}>
+          {text}
+        </div>
+      )}
+    </>
+  );
+}
+
 export function ControlPanel({
   job,
   settings,
+  mode,
   onSettingChange,
   onRegistrationChange,
   onInkChannelChange,
 }: ControlPanelProps) {
+  const guided = mode === "guided";
   const [selectedColor, setSelectedColor] = useState<ColorName>("cyan");
 
   const inkCh = inkChannelMap[selectedColor];
@@ -78,15 +133,20 @@ export function ControlPanel({
         <h3>Press settings</h3>
         {sliderKeys.map((key) => {
           const range = job.ranges[key];
+          const inputId = `setting-${key}`;
           return (
-            <label className="control" key={key}>
+            <div className="control" key={key}>
               <span>
-                {range.label}
+                <span className="control-label-row">
+                  <label htmlFor={inputId}>{range.label}</label>
+                  {guided && TIPS[key] && <InfoTip text={TIPS[key]!} />}
+                </span>
                 <strong>
                   {settings[key]} {range.unit}
                 </strong>
               </span>
               <input
+                id={inputId}
                 type="range"
                 min={range.min}
                 max={range.max}
@@ -94,7 +154,7 @@ export function ControlPanel({
                 value={settings[key]}
                 onChange={(e) => onSettingChange(key, Number(e.target.value))}
               />
-            </label>
+            </div>
           );
         })}
       </div>
@@ -115,8 +175,11 @@ export function ControlPanel({
             </button>
           ))}
         </div>
-        <label className="control anilox-select" htmlFor="anilox-channel-select">
-          <span>Anilox roll</span>
+        <div className="control anilox-select">
+          <span className="control-label-row">
+            <label htmlFor="anilox-channel-select">Anilox roll</label>
+            {guided && <InfoTip text={TIPS.aniloxRoll!} />}
+          </span>
           <select
             id="anilox-channel-select"
             value={inkCurrentPreset.id}
@@ -131,18 +194,23 @@ export function ControlPanel({
               </option>
             ))}
           </select>
-        </label>
+        </div>
         {inkSliderKeys.map((key) => {
           const range = job.inkChannelRanges[key];
+          const inputId = `ink-${inkCh}-${key}`;
           return (
-            <label className="control" key={key}>
+            <div className="control" key={key}>
               <span>
-                {range.label}
+                <span className="control-label-row">
+                  <label htmlFor={inputId}>{range.label}</label>
+                  {guided && TIPS[key] && <InfoTip text={TIPS[key]!} />}
+                </span>
                 <strong>
                   {settings.inkChannels[inkCh][key]} {range.unit}
                 </strong>
               </span>
               <input
+                id={inputId}
                 type="range"
                 min={range.min}
                 max={range.max}
@@ -151,12 +219,13 @@ export function ControlPanel({
                 aria-label={range.label}
                 onChange={(e) => onInkChannelChange(inkCh, key, Number(e.target.value))}
               />
-            </label>
+            </div>
           );
         })}
         <div className="reg-readout">
           <span>X: <strong>{regX.toFixed(1)} mil</strong></span>
           <span>Y: <strong>{regY.toFixed(1)} mil</strong></span>
+          {guided && <InfoTip text={TIPS.registration!} />}
         </div>
         <div className="reg-dpad">
           <button type="button" className="reg-dpad__btn" aria-label="up"    onClick={() => nudge("y", -0.1)}>↑</button>
