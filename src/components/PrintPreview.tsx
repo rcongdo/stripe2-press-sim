@@ -172,16 +172,22 @@ function drawPlate(
   ctx.fillStyle = INK_COLOR[channel];
 
   if (!showDots) {
-    // 1× continuous-tone: light tint overlay — density scaled down so four
-    // multiply layers don't obliterate the artwork beneath.
-    // Density ~1.4 → plateAlpha ~0.35; heavier ink raises it toward 0.5.
+    // 1× continuous-tone: apply registration offset so color channels shift
+    // visibly when misaligned. Clip to pouch+bleed so shifted fills don't
+    // bleed into adjacent pouches.
+    const REG_BLEED_1X = 4 * MIL_TO_PX;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(pouchX - REG_BLEED_1X, POUCH_TOP - REG_BLEED_1X, POUCH_W + REG_BLEED_1X * 2, POUCH_H + REG_BLEED_1X * 2);
+    ctx.clip();
     const plateAlpha = Math.min(0.5, density / 4);
     ZONES.forEach((zone, i) => {
       const coverage = coverages[i];
       if (coverage < 0.01) return;
       ctx.globalAlpha = plateAlpha * coverage;
-      ctx.fillRect(pouchX + zone.x, zone.y, zone.w, zone.h);
+      ctx.fillRect(pouchX + zone.x + regX, zone.y + regY, zone.w, zone.h);
     });
+    ctx.restore();
     ctx.restore();
     return;
   }
@@ -201,7 +207,7 @@ function drawPlate(
     const coverage = coverages[i];
     if (coverage < 0.01) return;
 
-    const radius = PITCH * 0.48 * Math.sqrt(coverage) * (1 + (gain - 0.18) * 1.5);
+    const radius = PITCH * 0.48 * Math.sqrt(coverage) * (1 + gain * 1.5);
     if (radius <= 0) return;
 
     const cx = pouchX + zone.x + zone.w / 2 + regX;
@@ -225,12 +231,23 @@ function drawPlate(
   ctx.restore(); // pop globalAlpha / compositeOperation
 }
 
+const CH_COLORS: Record<"C" | "M" | "Y" | "K", string> = {
+  C: "#00bef0", M: "#e0009a", Y: "#c89400", K: "#222",
+};
+
 export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState<ZoomLevel>(1);
   const zoomIdx = ZOOM_LEVELS.indexOf(zoom);
   const showDots = zoom === 4;
+
+  const [channelVisible, setChannelVisible] = useState<Record<"C"|"M"|"Y"|"K", boolean>>(
+    { C: true, M: true, Y: true, K: true },
+  );
+  function toggleChannel(ch: "C"|"M"|"Y"|"K") {
+    setChannelVisible(prev => ({ ...prev, [ch]: !prev[ch] }));
+  }
 
   // Pan state (only active at 4×)
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -296,6 +313,7 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
       // CMYK plates in standard print order: Y → M → C → K, for all 3 pouches
       for (const pouchX of POUCH_ORIGINS) {
         for (const ch of ["Y", "M", "C", "K"] as const) {
+          if (!channelVisible[ch]) continue;
           const regX = settings.registration[REG_KEYS[ch].x] * MIL_TO_PX;
           const regY = settings.registration[REG_KEYS[ch].y] * MIL_TO_PX;
           drawPlate(ctx, ch, pouchX, regX, regY, outcome.channelGain[ch], outcome.channelDensity[ch], showDots);
@@ -398,12 +416,26 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
     });
 
     return () => { cancelled = true; cancelAnimationFrame(frameId); };
-  }, [settings, outcome, showDots]);
+  }, [settings, outcome, showDots, channelVisible]);
 
   return (
     <section className="print-preview" aria-label="Live print sample">
       <div className="print-preview__header">
         <span>Live print sample</span>
+        <div className="channel-toggles" role="group" aria-label="Visible channels">
+          {(["C", "M", "Y", "K"] as const).map((ch) => (
+            <button
+              key={ch}
+              type="button"
+              aria-pressed={channelVisible[ch]}
+              className={`ch-toggle-btn${channelVisible[ch] ? " ch-toggle-btn--on" : ""}`}
+              style={{ "--ch-color": CH_COLORS[ch] } as React.CSSProperties}
+              onClick={() => toggleChannel(ch)}
+            >
+              {ch}
+            </button>
+          ))}
+        </div>
         <div className="zoom-controls">
           <button
             type="button"
