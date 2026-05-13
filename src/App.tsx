@@ -4,41 +4,70 @@ import { ControlPanel } from "./components/ControlPanel";
 import { MetricsStrip } from "./components/MetricsStrip";
 import { PrintPreview } from "./components/PrintPreview";
 import { ScoreModal } from "./components/ScoreModal";
-import { starterJob } from "./domain/jobs";
-import { createInitialSettings, createPerfectSettings, updateInkChannelSetting, updateSetting } from "./domain/settings";
-import type { InkChannelKey, InkChannelSettingKey, PressSettingKey, RegistrationKey, ScoreSummary } from "./domain/types";
+import { JOB_REGISTRY, snackPouchJob } from "./domain/jobs";
+import {
+  activateSpotChannel,
+  createInitialSettings,
+  createPerfectSettings,
+  deactivateSpotChannel,
+  updateInkChannelSetting,
+  updateSetting,
+} from "./domain/settings";
+import type {
+  ChannelId,
+  InkChannelSettingKey,
+  JobPreset,
+  PressSettingKey,
+  RegistrationOffset,
+} from "./domain/types";
 import { simulatePress } from "./simulation/engine";
 import { filterCoaching, scoreRun, type TrainingMode } from "./simulation/scoring";
 
 export default function App() {
-  const [settings, setSettings] = useState(() => createInitialSettings(starterJob));
+  const [selectedJob, setSelectedJob] = useState<JobPreset>(snackPouchJob);
+  const [settings, setSettings] = useState(() => createInitialSettings(snackPouchJob));
   const [mode, setMode] = useState<TrainingMode>("guided");
-  const [score, setScore] = useState<ScoreSummary | null>(null);
-  const outcome = useMemo(() => simulatePress(starterJob, settings), [settings]);
+  const [score, setScore] = useState<ReturnType<typeof scoreRun> | null>(null);
+
+  const outcome = useMemo(() => simulatePress(selectedJob, settings), [selectedJob, settings]);
   const coaching = filterCoaching(outcome.coaching, mode);
 
-  function handleSettingChange(key: PressSettingKey, value: number) {
-    setSettings((current) => updateSetting(starterJob, current, key, value));
+  function switchJob(job: JobPreset) {
+    setSelectedJob(job);
+    setSettings(createInitialSettings(job));
+    setScore(null);
   }
 
-  function handleRegistrationChange(key: RegistrationKey, value: number) {
-    setSettings((current) => ({
+  function handleSettingChange(key: PressSettingKey, value: number) {
+    setSettings(current => updateSetting(selectedJob, current, key, value));
+  }
+
+  function handleRegistrationChange(channelId: ChannelId, offset: RegistrationOffset) {
+    setSettings(current => ({
       ...current,
-      registration: { ...current.registration, [key]: value },
+      registration: { ...current.registration, [channelId]: offset },
     }));
   }
 
-  function handleInkChannelChange(channel: InkChannelKey, key: InkChannelSettingKey, value: number) {
-    setSettings((current) => updateInkChannelSetting(starterJob, current, channel, key, value));
+  function handleInkChannelChange(channel: ChannelId, key: InkChannelSettingKey, value: number) {
+    setSettings(current => updateInkChannelSetting(selectedJob, current, channel, key, value));
+  }
+
+  function handleSpotChannelToggle(channelId: ChannelId, active: boolean) {
+    setSettings(current =>
+      active
+        ? activateSpotChannel(selectedJob, current, channelId)
+        : deactivateSpotChannel(current, channelId)
+    );
   }
 
   function resetJob() {
-    setSettings(createInitialSettings(starterJob));
+    setSettings(createInitialSettings(selectedJob));
     setScore(null);
   }
 
   function makePerfect() {
-    setSettings(createPerfectSettings(starterJob));
+    setSettings(createPerfectSettings(selectedJob));
     setScore(null);
   }
 
@@ -50,30 +79,38 @@ export default function App() {
           <h1>Flexographic Press Simulator</h1>
         </div>
         <div className="header-actions">
-          <button type="button" className="secondary-button" onClick={resetJob}>
-            Reset job
-          </button>
-          <button type="button" className="secondary-button" onClick={makePerfect}>
-            Make perfect
-          </button>
-          <button type="button" className="primary-button" onClick={() => setScore(scoreRun(outcome))}>
-            Finish run
-          </button>
+          <select
+            className="job-selector"
+            value={selectedJob.id}
+            aria-label="Select job"
+            onChange={e => {
+              const job = JOB_REGISTRY.find(j => j.id === e.target.value);
+              if (job) switchJob(job);
+            }}
+          >
+            {JOB_REGISTRY.map(j => <option key={j.id} value={j.id}>{j.name}</option>)}
+          </select>
+          <button type="button" className="secondary-button" onClick={resetJob}>Reset job</button>
+          <button type="button" className="secondary-button" onClick={makePerfect}>Make perfect</button>
+          <button type="button" className="primary-button" onClick={() => setScore(scoreRun(outcome))}>Finish run</button>
         </div>
       </header>
-      <MetricsStrip outcome={outcome} />
+
+      <MetricsStrip outcome={outcome} job={selectedJob} />
+
       <div className="simulator-grid">
         <div className="print-workspace">
-          <PrintPreview settings={settings} outcome={outcome} />
+          <PrintPreview settings={settings} outcome={outcome} job={selectedJob} />
           <CoachPanel messages={coaching} mode={mode} onModeChange={setMode} />
         </div>
         <ControlPanel
-          job={starterJob}
+          job={selectedJob}
           settings={settings}
           mode={mode}
           onSettingChange={handleSettingChange}
           onRegistrationChange={handleRegistrationChange}
           onInkChannelChange={handleInkChannelChange}
+          onSpotChannelToggle={handleSpotChannelToggle}
         />
       </div>
       <ScoreModal score={score} onClose={() => setScore(null)} onReset={resetJob} />
