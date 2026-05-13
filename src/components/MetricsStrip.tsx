@@ -17,14 +17,26 @@ export function MetricsStrip({ job, outcome }: MetricsStripProps) {
 
   return (
     <section className="metrics-strip" aria-label="Live press metrics">
-      <div className="metric">
-        <span>Setup quality</span>
-        <strong>{outcome.setupQuality}%</strong>
-      </div>
-
-      <div className="metric">
-        <span>Waste</span>
-        <strong>{outcome.wasteRate} ft</strong>
+      <div className="metrics-2x2">
+        <div className="metric metric--boxed">
+          <span>Setup quality</span>
+          <strong>{outcome.setupQuality}%</strong>
+        </div>
+        <div className="metric metric--boxed">
+          <span>Waste</span>
+          <strong>{outcome.wasteRate} ft</strong>
+        </div>
+        <div className="metric metric--boxed">
+          <span>Drying risk</span>
+          <strong>{outcome.dryingRisk}%</strong>
+        </div>
+        <div className="metric metric--boxed metric--register">
+          <span>Register</span>
+          <div className="register-indicator">
+            <span className="register-dot" style={{ background: reg.color }} />
+            <strong style={{ color: reg.color }}>{reg.label}</strong>
+          </div>
+        </div>
       </div>
 
       <div className="metric metric--channels">
@@ -52,19 +64,6 @@ export function MetricsStrip({ job, outcome }: MetricsStripProps) {
             })}
           </tbody>
         </table>
-      </div>
-
-      <div className="metric">
-        <span>Drying risk</span>
-        <strong>{outcome.dryingRisk}%</strong>
-      </div>
-
-      <div className="metric metric--register">
-        <span>Register</span>
-        <div className="register-indicator">
-          <span className="register-dot" style={{ background: reg.color }} />
-          <strong style={{ color: reg.color }}>{reg.label}</strong>
-        </div>
       </div>
     </section>
   );

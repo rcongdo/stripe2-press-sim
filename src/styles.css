@@ -110,16 +110,27 @@ h3 {
 }
 
 .metrics-strip {
-  display: grid;
-  grid-template-columns: 1fr 1fr 2fr 1fr 1fr;
-  gap: 1px;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
   margin: 14px 0;
-  overflow: hidden;
+}
+
+.metrics-2x2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 6px;
 }
 
 .metric {
   background: #fff;
   padding: 12px 14px;
+}
+
+.metric--boxed {
+  border: 1px solid #dde4ea;
+  border-radius: 6px;
 }
 
 .metric span {
@@ -148,7 +159,7 @@ h3 {
 }
 
 .channel-table td {
-  padding: 1px 4px;
+  padding: 1px 2px;
   line-height: 1.5;
 }
 
@@ -157,7 +168,7 @@ h3 {
   font-weight: 700;
   color: #697784;
   text-align: right;
-  padding: 0 4px 2px;
+  padding: 0 2px 2px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -165,7 +176,7 @@ h3 {
 .ch-swatch {
   font-weight: 800;
   font-size: 0.75rem;
-  width: 18px;
+  width: 14px;
   text-align: center;
 }
 
