@@ -6,31 +6,37 @@ type PrintPreviewProps = {
   outcome: SimulationOutcome;
 };
 
+// Logical display dimensions (CSS pixels at 1× zoom)
 const W = 920;
 const H = 420;
-const PITCH = 12;
-const MIL_TO_PX = 4;
+// Internal canvas render scale — 4× logical gives sub-pixel dots at 1× zoom,
+// crisp 12px dots at 4× zoom (1:1 native)
+const SCALE = 4;
+const W_CANVAS = W * SCALE;   // 3680
+const H_CANVAS = H * SCALE;   // 1680
+
+const PITCH = 12;              // internal pixels per dot-grid step
+const MIL_TO_PX = 4 * SCALE;  // 16 internal pixels per mil
 const MIN_PLATE_ALPHA = 0.25;
-const POUCH_ORIGINS = [10, 310, 610] as const;
+
+const POUCH_W   = 280 * SCALE;  // 1120
+const POUCH_H   = 400 * SCALE;  // 1600
+const POUCH_TOP =  10 * SCALE;  // 40
+const POUCH_ORIGINS = [10 * SCALE, 310 * SCALE, 610 * SCALE] as const; // [40,1240,2440]
+
 const ZOOM_LEVELS = [0.5, 1, 2, 4] as const;
 type ZoomLevel = (typeof ZOOM_LEVELS)[number];
 
 type Zone = { x: number; y: number; w: number; h: number };
 
-// Pouch dimensions
-const POUCH_W = 280;
-const POUCH_H = 400;
-const POUCH_TOP = 10;
-
-// Per-pouch zone coordinates — x is relative to each pouch's pouchX origin
+// Per-pouch zone coordinates — x relative to pouchX, all values in internal pixels
 const ZONES: Zone[] = [
-  { x: 0, y: 10,  w: POUCH_W, h: 60  },  // header
-  { x: 0, y: 70,  w: POUCH_W, h: 220 },  // product graphic
-  { x: 0, y: 290, w: POUCH_W, h: 50  },  // flavor stripe
-  { x: 0, y: 340, w: POUCH_W, h: 70  },  // nutrition bar
+  { x: 0, y:   40, w: POUCH_W, h: 240 },  // header
+  { x: 0, y:  280, w: POUCH_W, h: 880 },  // product graphic
+  { x: 0, y: 1160, w: POUCH_W, h: 200 },  // flavor stripe
+  { x: 0, y: 1360, w: POUCH_W, h: 280 },  // nutrition bar
 ];
 
-// Named index constants to replace fragile destructuring
 const ZONE_HEADER    = 0;
 const ZONE_GRAPHIC   = 1;
 const ZONE_FLAVOR    = 2;
@@ -74,9 +80,9 @@ function drawArtwork(ctx: CanvasRenderingContext2D, pouchX: number) {
   // Pouch die-cut outline
   ctx.save();
   ctx.strokeStyle = "#d4c9b0";
-  ctx.lineWidth = 1;
+  ctx.lineWidth = SCALE;
   ctx.beginPath();
-  ctx.roundRect(pouchX, POUCH_TOP, POUCH_W, POUCH_H, 8);
+  ctx.roundRect(pouchX, POUCH_TOP, POUCH_W, POUCH_H, 8 * SCALE);
   ctx.stroke();
   ctx.restore();
 
@@ -86,11 +92,11 @@ function drawArtwork(ctx: CanvasRenderingContext2D, pouchX: number) {
   ctx.fillRect(pouchX + headerZone.x, headerZone.y, headerZone.w, headerZone.h);
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 28px Inter, sans-serif";
-  ctx.fillText("SUMMIT", pouchX + POUCH_W / 2, headerZone.y + 36);
+  ctx.font = `bold ${28 * SCALE}px Inter, sans-serif`;
+  ctx.fillText("SUMMIT", pouchX + POUCH_W / 2, headerZone.y + 36 * SCALE);
   ctx.fillStyle = "#a8d4a8";
-  ctx.font = "800 11px Inter, sans-serif";
-  ctx.fillText("TRAIL MIX CO.", pouchX + POUCH_W / 2, headerZone.y + 54);
+  ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
+  ctx.fillText("TRAIL MIX CO.", pouchX + POUCH_W / 2, headerZone.y + 54 * SCALE);
   ctx.restore();
 
   // Product graphic — amber sky gradient + mountain polygon + sun arc
@@ -104,19 +110,19 @@ function drawArtwork(ctx: CanvasRenderingContext2D, pouchX: number) {
 
   // Sun
   ctx.beginPath();
-  ctx.arc(pouchX + POUCH_W / 2, graphicZone.y + 50, 36, Math.PI, 0);
+  ctx.arc(pouchX + POUCH_W / 2, graphicZone.y + 50 * SCALE, 36 * SCALE, Math.PI, 0);
   ctx.fillStyle = "#f0c040";
   ctx.fill();
 
   // Mountain silhouette
   ctx.beginPath();
-  ctx.moveTo(pouchX,       graphicZone.y + graphicZone.h);
-  ctx.lineTo(pouchX + 60,  graphicZone.y + 100);
-  ctx.lineTo(pouchX + 110, graphicZone.y + 150);
-  ctx.lineTo(pouchX + 140, graphicZone.y + 90);
-  ctx.lineTo(pouchX + 180, graphicZone.y + 140);
-  ctx.lineTo(pouchX + 220, graphicZone.y + 110);
-  ctx.lineTo(pouchX + 280, graphicZone.y + graphicZone.h);
+  ctx.moveTo(pouchX,             graphicZone.y + graphicZone.h);
+  ctx.lineTo(pouchX +  60*SCALE, graphicZone.y + 100*SCALE);
+  ctx.lineTo(pouchX + 110*SCALE, graphicZone.y + 150*SCALE);
+  ctx.lineTo(pouchX + 140*SCALE, graphicZone.y +  90*SCALE);
+  ctx.lineTo(pouchX + 180*SCALE, graphicZone.y + 140*SCALE);
+  ctx.lineTo(pouchX + 220*SCALE, graphicZone.y + 110*SCALE);
+  ctx.lineTo(pouchX + 280*SCALE, graphicZone.y + graphicZone.h);
   ctx.closePath();
   ctx.fillStyle = "#3a2010";
   ctx.fill();
@@ -127,9 +133,9 @@ function drawArtwork(ctx: CanvasRenderingContext2D, pouchX: number) {
   ctx.fillStyle = "#d4780a";
   ctx.fillRect(pouchX + flavorZone.x, flavorZone.y, flavorZone.w, flavorZone.h);
   ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 13px Inter, sans-serif";
+  ctx.font = `bold ${13 * SCALE}px Inter, sans-serif`;
   ctx.textAlign = "center";
-  ctx.fillText("ALPINE CLASSIC CRUNCH", pouchX + POUCH_W / 2, flavorZone.y + 32);
+  ctx.fillText("ALPINE CLASSIC CRUNCH", pouchX + POUCH_W / 2, flavorZone.y + 32 * SCALE);
   ctx.restore();
 
   // Nutrition bar — cream background with claims text
@@ -137,12 +143,12 @@ function drawArtwork(ctx: CanvasRenderingContext2D, pouchX: number) {
   ctx.fillStyle = "#f5f0e0";
   ctx.fillRect(pouchX + nutritionZone.x, nutritionZone.y, nutritionZone.w, nutritionZone.h);
   ctx.fillStyle = "#4a3a2a";
-  ctx.font = "9px Inter, sans-serif";
+  ctx.font = `${9 * SCALE}px Inter, sans-serif`;
   ctx.textAlign = "center";
   ctx.fillText(
     "NET WT 2.5 OZ (70g)  •  GLUTEN FREE  •  NON-GMO",
     pouchX + POUCH_W / 2,
-    nutritionZone.y + 40,
+    nutritionZone.y + 40 * SCALE,
   );
   ctx.restore();
 }
@@ -164,6 +170,14 @@ function drawPlate(
   ctx.fillStyle = INK_COLOR[channel];
   ctx.globalAlpha = Math.min(1, Math.max(MIN_PLATE_ALPHA, density));
 
+  // Single pouch-level clip with registration bleed — lets misaligned dots
+  // appear at artwork edges instead of being cut off by per-zone clipping
+  ctx.save();
+  const REG_BLEED = 4 * MIL_TO_PX; // 64 internal px; gutter between pouches is 80px so no cross-bleed
+  ctx.beginPath();
+  ctx.rect(pouchX - REG_BLEED, POUCH_TOP - REG_BLEED, POUCH_W + REG_BLEED * 2, POUCH_H + REG_BLEED * 2);
+  ctx.clip();
+
   ZONES.forEach((zone, i) => {
     const coverage = coverages[i];
     if (coverage < 0.01) return;
@@ -171,13 +185,9 @@ function drawPlate(
     const radius = PITCH * 0.48 * Math.sqrt(coverage) * (1 + (gain - 0.18) * 1.5);
     if (radius <= 0) return;
 
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(pouchX + zone.x, zone.y, zone.w, zone.h);
-    ctx.clip();
-
     const cx = pouchX + zone.x + zone.w / 2 + regX;
     const cy = zone.y + zone.h / 2 + regY;
+    ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(angle);
 
@@ -192,7 +202,8 @@ function drawPlate(
     ctx.restore();
   });
 
-  ctx.restore();
+  ctx.restore(); // pop pouch clip
+  ctx.restore(); // pop globalAlpha / compositeOperation
 }
 
 export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
@@ -212,10 +223,10 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
 
       // Substrate background
       ctx.fillStyle = "#f6f1e8";
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillRect(0, 0, W_CANVAS, H_CANVAS);
       ctx.fillStyle = "#fffdf8";
       ctx.beginPath();
-      ctx.roundRect(4, 4, W - 8, H - 8, 6);
+      ctx.roundRect(4 * SCALE, 4 * SCALE, W_CANVAS - 8 * SCALE, H_CANVAS - 8 * SCALE, 6 * SCALE);
       ctx.fill();
 
       // Artwork layer — draw brand elements for all 3 pouches before plates
@@ -241,7 +252,12 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
         ctx.fillStyle = "#fffdf8";
         for (let i = 0; i < 24; i++) {
           ctx.beginPath();
-          ctx.arc(60 + ((i * 37) % 800), 30 + ((i * 53) % 360), 2 + (i % 3), 0, Math.PI * 2);
+          ctx.arc(
+            (60 + ((i * 37) % 800)) * SCALE,
+            (30 + ((i * 53) % 360)) * SCALE,
+            (2 + (i % 3)) * SCALE,
+            0, Math.PI * 2,
+          );
           ctx.fill();
         }
         ctx.restore();
@@ -253,7 +269,12 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
         ctx.globalAlpha = (outcome.defects.dirtyPrint / 100) * 0.4;
         ctx.fillStyle = "#1a1207";
         for (let i = 0; i < 28; i++) {
-          ctx.fillRect(30 + ((i * 31) % 860), 22 + ((i * 43) % 376), 3 + (i % 6), 1);
+          ctx.fillRect(
+            (30 + ((i * 31) % 860)) * SCALE,
+            (22 + ((i * 43) % 376)) * SCALE,
+            (3 + (i % 6)) * SCALE,
+            SCALE,
+          );
         }
         ctx.restore();
       }
@@ -264,7 +285,12 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
         ctx.globalAlpha = (outcome.defects.skips / 100) * 0.7;
         ctx.fillStyle = "#fffdf8";
         for (let i = 0; i < 20; i++) {
-          ctx.fillRect(40 + ((i * 41) % 820), 25 + ((i * 67) % 370), 8 + (i % 5) * 3, 1);
+          ctx.fillRect(
+            (40 + ((i * 41) % 820)) * SCALE,
+            (25 + ((i * 67) % 370)) * SCALE,
+            (8 + (i % 5) * 3) * SCALE,
+            SCALE,
+          );
         }
         ctx.restore();
       }
@@ -273,22 +299,23 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
       if (outcome.defects.edgeSquash > 0) {
         ctx.save();
         ctx.globalAlpha = (outcome.defects.edgeSquash / 100) * 0.35;
+        const edgeR = 24 * SCALE;
         for (const pouchX of POUCH_ORIGINS) {
           for (const zone of ZONES) {
             const topX = pouchX + zone.x + zone.w / 2;
             const topY = zone.y;
-            const grTop = ctx.createRadialGradient(topX, topY, 0, topX, topY, 24);
+            const grTop = ctx.createRadialGradient(topX, topY, 0, topX, topY, edgeR);
             grTop.addColorStop(0, "rgba(10,6,2,0.8)");
             grTop.addColorStop(1, "rgba(10,6,2,0)");
             ctx.fillStyle = grTop;
-            ctx.fillRect(topX - 24, topY - 24, 48, 48);
+            ctx.fillRect(topX - edgeR, topY - edgeR, edgeR * 2, edgeR * 2);
 
             const botY = zone.y + zone.h;
-            const grBot = ctx.createRadialGradient(topX, botY, 0, topX, botY, 24);
+            const grBot = ctx.createRadialGradient(topX, botY, 0, topX, botY, edgeR);
             grBot.addColorStop(0, "rgba(10,6,2,0.8)");
             grBot.addColorStop(1, "rgba(10,6,2,0)");
             ctx.fillStyle = grBot;
-            ctx.fillRect(topX - 24, botY - 24, 48, 48);
+            ctx.fillRect(topX - edgeR, botY - edgeR, edgeR * 2, edgeR * 2);
           }
         }
         ctx.restore();
@@ -299,13 +326,13 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
         ctx.save();
         ctx.globalAlpha = (outcome.defects.mottle / 100) * 0.18;
         for (let i = 0; i < 12; i++) {
-          const gx = 60 + ((i * 73) % 800);
-          const gy = 30 + ((i * 59) % 360);
-          const gr = ctx.createRadialGradient(gx, gy, 0, gx, gy, 40 + (i % 3) * 12);
+          const gx = (60 + ((i * 73) % 800)) * SCALE;
+          const gy = (30 + ((i * 59) % 360)) * SCALE;
+          const gr = ctx.createRadialGradient(gx, gy, 0, gx, gy, (40 + (i % 3) * 12) * SCALE);
           gr.addColorStop(0, "rgba(20,12,4,0.6)");
           gr.addColorStop(1, "rgba(20,12,4,0)");
           ctx.fillStyle = gr;
-          ctx.fillRect(gx - 52, gy - 52, 104, 104);
+          ctx.fillRect(gx - 52 * SCALE, gy - 52 * SCALE, 104 * SCALE, 104 * SCALE);
         }
         ctx.restore();
       }
@@ -339,13 +366,12 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
       </div>
       <canvas
         ref={canvasRef}
-        width={W}
-        height={H}
+        width={W_CANVAS}
+        height={H_CANVAS}
         style={{
           width: W * zoom,
           height: H * zoom,
           display: "block",
-          imageRendering: zoom > 1 ? "pixelated" : undefined,
         }}
         aria-label="Simulated flexible packaging web"
         data-testid="print-canvas"

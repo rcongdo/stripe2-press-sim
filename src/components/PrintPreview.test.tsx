@@ -31,7 +31,7 @@ describe("PrintPreview", () => {
     const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
     vi.runAllTimers();
     // Full-canvas substrate rect must be the first fillRect call
-    expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, 920, 420);
+    expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, 3680, 1680);
     vi.useRealTimers();
   });
 
@@ -68,15 +68,10 @@ describe("PrintPreview", () => {
     expect(screen.getByLabelText("Zoom in")).toBeDisabled();
   });
 
-  it("applies pixelated image rendering at zoom > 1", () => {
-    render(<PrintPreview settings={defaultSettings} outcome={outcome} />);
-    fireEvent.click(screen.getByLabelText("Zoom in")); // 2×
-    expect(screen.getByTestId("print-canvas")).toHaveStyle({ imageRendering: "pixelated" });
-  });
-
-  it("does not apply pixelated image rendering at 1× zoom", () => {
+  it("never sets pixelated image rendering — 4× native scale handles dot visibility", () => {
     render(<PrintPreview settings={defaultSettings} outcome={outcome} />);
     const canvas = screen.getByTestId("print-canvas") as HTMLCanvasElement;
+    fireEvent.click(screen.getByLabelText("Zoom in")); // 2×
     expect(canvas.style.imageRendering).not.toBe("pixelated");
   });
 
