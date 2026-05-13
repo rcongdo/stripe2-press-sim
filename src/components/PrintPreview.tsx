@@ -1,63 +1,63 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PressSettings, Registration, SimulationOutcome } from "../domain/types";
+import type { ChannelDef, ChannelId, JobPreset, PressSettings, SimulationOutcome } from "../domain/types";
+import { drawSnackPouchChannel } from "./artwork/snackPouch";
+import { drawLabelPrintChannel } from "./artwork/labelPrint";
+
+type DrawChannelFn = (
+  ctx: CanvasRenderingContext2D,
+  ch: ChannelDef,
+  pouchX: number, regX: number, regY: number,
+  density: number, gain: number, showDots: boolean,
+) => void;
+
+const ARTWORK_RENDERERS: Record<string, DrawChannelFn> = {
+  "snack-pouch-cmyk": drawSnackPouchChannel,
+  "label-print":      drawLabelPrintChannel,
+};
 
 type PrintPreviewProps = {
+  job: JobPreset;
   settings: PressSettings;
   outcome: SimulationOutcome;
 };
 
-// Logical display dimensions (CSS pixels at 1× zoom)
 const W = 920;
 const H = 420;
-// Internal canvas render scale — 4× logical gives sub-pixel dots at 1× zoom,
-// crisp 12px dots at 4× zoom (1:1 native)
 const SCALE = 4;
-const W_CANVAS = W * SCALE;   // 3680
-const H_CANVAS = H * SCALE;   // 1680
+const W_CANVAS = W * SCALE;
+const H_CANVAS = H * SCALE;
 
-const PITCH = 12;              // internal pixels per dot-grid step
-const MIL_TO_PX = 4 * SCALE;  // 16 internal pixels per mil
+const PITCH = 12;
+const MIL_TO_PX = 4 * SCALE;
 const MIN_PLATE_ALPHA = 0.25;
-
-const POUCH_W   = 280 * SCALE;  // 1120
-const POUCH_H   = 400 * SCALE;  // 1600
-const POUCH_TOP =  10 * SCALE;  // 40
-const POUCH_ORIGINS = [10 * SCALE, 310 * SCALE, 610 * SCALE] as const; // [40,1240,2440]
+const POUCH_W   = 280 * SCALE;
+const POUCH_H   = 400 * SCALE;
+const POUCH_TOP =  10 * SCALE;
+const POUCH_ORIGINS = [10 * SCALE, 310 * SCALE, 610 * SCALE] as const;
 
 const ZOOM_LEVELS = [1, 4] as const;
 type ZoomLevel = (typeof ZOOM_LEVELS)[number];
 
 type Zone = { x: number; y: number; w: number; h: number };
-
-// Per-pouch zone coordinates — x relative to pouchX, all values in internal pixels
 const ZONES: Zone[] = [
-  { x: 0, y:   40, w: POUCH_W, h: 240 },  // header
-  { x: 0, y:  280, w: POUCH_W, h: 880 },  // product graphic
-  { x: 0, y: 1160, w: POUCH_W, h: 200 },  // flavor stripe
-  { x: 0, y: 1360, w: POUCH_W, h: 280 },  // nutrition bar
+  { x: 0, y:   40, w: POUCH_W, h: 240 },
+  { x: 0, y:  280, w: POUCH_W, h: 880 },
+  { x: 0, y: 1160, w: POUCH_W, h: 200 },
+  { x: 0, y: 1360, w: POUCH_W, h: 280 },
 ];
 
-const ZONE_HEADER    = 0;
-const ZONE_GRAPHIC   = 1;
-const ZONE_FLAVOR    = 2;
-const ZONE_NUTRITION = 3;
+// Barcode constants (snack pouch only)
+const BC_MODULE  = 6;
+const BC_QUIET   = 9 * BC_MODULE;
+const BC_BAR_H   = 76;
+const BC_GUARD_H = 96;
+const BC_NUM_H   = 28;
+const BC_PAD     = 12;
+const BC_BOX_W   = 95 * BC_MODULE + 2 * BC_QUIET + 2 * BC_PAD;
+const BC_BOX_H   = BC_GUARD_H + BC_NUM_H + 2 * BC_PAD;
+const BC_BOX_X   = Math.round((POUCH_W - BC_BOX_W) / 2);
+const BC_BOX_Y   = ZONES[3].y + ZONES[3].h - BC_BOX_H - 12;
 
-// UPC-A barcode constants (all in internal canvas pixels)
-const BC_MODULE  = 6;               // module width
-const BC_QUIET   = 9 * BC_MODULE;   // quiet zone each side (54px)
-const BC_BAR_H   = 76;              // normal bar height
-const BC_GUARD_H = 96;              // guard bar height
-const BC_NUM_H   = 28;              // digit-number area height
-const BC_PAD     = 12;              // padding inside white box
-const BC_BOX_W   = 95 * BC_MODULE + 2 * BC_QUIET + 2 * BC_PAD;  // 702px
-const BC_BOX_H   = BC_GUARD_H + BC_NUM_H + 2 * BC_PAD;          // 148px
-
-// Barcode position within each pouch (natural / non-registered coordinates)
-const BC_BOX_X = Math.round((POUCH_W - BC_BOX_W) / 2);           // centered horizontally
-// Placed near the bottom of the nutrition zone
-const BC_BOX_Y = ZONES[ZONE_NUTRITION].y + ZONES[ZONE_NUTRITION].h - BC_BOX_H - 12;
-
-// UPC-A encoding tables
 const L_CODES: Record<string, string> = {
   "0":"0001101","1":"0011001","2":"0010011","3":"0111101",
   "4":"0100011","5":"0110001","6":"0101111","7":"0111011",
@@ -75,46 +75,8 @@ const BC_PATTERN = (
   "01010" +
   BC_DIGITS.slice(6,12).split("").map(c => R_CODES[c]).join("") +
   "101"
-); // 95 modules total
+);
 
-
-const SCREEN_ANGLE: Record<"C" | "M" | "Y" | "K", number> = {
-  C: (15 * Math.PI) / 180,
-  M: (75 * Math.PI) / 180,
-  Y: 0,
-  K: (45 * Math.PI) / 180,
-};
-
-const INK_COLOR: Record<"C" | "M" | "Y" | "K", string> = {
-  C: "rgb(0,190,220)",
-  M: "rgb(220,0,150)",
-  Y: "rgb(255,210,0)",
-  K: "rgb(20,20,20)",
-};
-
-// Per-channel density targets — must match jobs.ts
-const CH_TARGET_DENSITY: Record<"C"|"M"|"Y"|"K", number> = { C: 1.4, M: 1.4, Y: 1.0, K: 1.6 };
-
-// CMYK separation values for each artwork element (computed from RGB via standard UCR)
-type ArtCmyk = { C: number; M: number; Y: number; K: number };
-const ART_HEADER_BG:    ArtCmyk = { C: 0.65, M: 0.00, Y: 0.38, K: 0.71 }; // #1a4a2e forest green
-const ART_HEADER_SUB:   ArtCmyk = { C: 0.20, M: 0.00, Y: 0.20, K: 0.17 }; // #a8d4a8 light green
-const ART_SKY_TOP:      ArtCmyk = { C: 0.00, M: 0.31, Y: 0.86, K: 0.09 }; // #e8a020 amber
-const ART_SKY_BOT:      ArtCmyk = { C: 0.00, M: 0.58, Y: 0.92, K: 0.25 }; // #c05010 deep amber
-const ART_SUN:          ArtCmyk = { C: 0.00, M: 0.20, Y: 0.73, K: 0.06 }; // #f0c040 yellow
-const ART_MOUNTAIN:     ArtCmyk = { C: 0.00, M: 0.45, Y: 0.72, K: 0.77 }; // #3a2010 dark brown
-const ART_FLAVOR_BG:    ArtCmyk = { C: 0.00, M: 0.43, Y: 0.95, K: 0.17 }; // #d4780a amber
-const ART_NUTRITION_BG: ArtCmyk = { C: 0.00, M: 0.02, Y: 0.09, K: 0.04 }; // #f5f0e0 cream
-const ART_BROWN_TEXT:   ArtCmyk = { C: 0.00, M: 0.22, Y: 0.43, K: 0.71 }; // #4a3a2a dark brown
-
-const REG_KEYS: Record<"C" | "M" | "Y" | "K", { x: keyof Registration; y: keyof Registration }> = {
-  C: { x: "cyanX",    y: "cyanY" },
-  M: { x: "magentaX", y: "magentaY" },
-  Y: { x: "yellowX",  y: "yellowY" },
-  K: { x: "blackX",   y: "blackY" },
-};
-
-// Die-cut outline — always drawn regardless of channels (structural context)
 function drawDieCut(ctx: CanvasRenderingContext2D, pouchX: number) {
   ctx.save();
   ctx.strokeStyle = "#d4c9b0";
@@ -125,282 +87,35 @@ function drawDieCut(ctx: CanvasRenderingContext2D, pouchX: number) {
   ctx.restore();
 }
 
-// Draw one ink channel's contribution to the artwork using CMYK separation values.
-// Registration offset is applied as a canvas translate so all elements shift together.
-// Density scales each element's alpha relative to the channel's target density.
-function drawArtworkForChannel(
-  ctx: CanvasRenderingContext2D,
-  channel: "C" | "M" | "Y" | "K",
-  pouchX: number,
-  regX: number,
-  regY: number,
-  density: number,
-) {
-  const densityScale = Math.min(1.5, density / CH_TARGET_DENSITY[channel]);
-  const hz = ZONES[ZONE_HEADER];
-  const gz = ZONES[ZONE_GRAPHIC];
-  const fz = ZONES[ZONE_FLAVOR];
-  const nz = ZONES[ZONE_NUTRITION];
-
-  // source-over so ink is placed correctly on the transparent offscreen canvas
-  ctx.save();
-  ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = INK_COLOR[channel];
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(pouchX - 2 * MIL_TO_PX, POUCH_TOP - 2 * MIL_TO_PX, POUCH_W + 4 * MIL_TO_PX, POUCH_H + 4 * MIL_TO_PX);
-  ctx.clip();
-  ctx.translate(regX, regY);
-
-  function fi(art: ArtCmyk, drawFn: () => void) {
-    const a = Math.min(1, art[channel] * densityScale);
-    if (a < 0.005) return;
-    ctx.globalAlpha = a;
-    drawFn();
-  }
-
-  // Header background
-  fi(ART_HEADER_BG, () => ctx.fillRect(pouchX + hz.x, hz.y, hz.w, hz.h));
-
-  // "TRAIL MIX CO." subtext (light green — positive text, no reversal needed)
-  fi(ART_HEADER_SUB, () => {
-    ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.fillText("TRAIL MIX CO.", pouchX + POUCH_W / 2, hz.y + 54 * SCALE);
-  });
-
-  // Sky — two halves approximate the original gradient
-  fi(ART_SKY_TOP, () => ctx.fillRect(pouchX + gz.x, gz.y,              gz.w, gz.h / 2));
-  fi(ART_SKY_BOT, () => ctx.fillRect(pouchX + gz.x, gz.y + gz.h / 2,  gz.w, gz.h / 2));
-
-  // Sun semicircle
-  fi(ART_SUN, () => {
-    ctx.beginPath();
-    ctx.arc(pouchX + POUCH_W / 2, gz.y + 50 * SCALE, 36 * SCALE, Math.PI, 0);
-    ctx.fill();
-  });
-
-  // Mountain silhouette
-  fi(ART_MOUNTAIN, () => {
-    ctx.beginPath();
-    ctx.moveTo(pouchX,              gz.y + gz.h);
-    ctx.lineTo(pouchX +  60 * SCALE, gz.y + 100 * SCALE);
-    ctx.lineTo(pouchX + 110 * SCALE, gz.y + 150 * SCALE);
-    ctx.lineTo(pouchX + 140 * SCALE, gz.y +  90 * SCALE);
-    ctx.lineTo(pouchX + 180 * SCALE, gz.y + 140 * SCALE);
-    ctx.lineTo(pouchX + 220 * SCALE, gz.y + 110 * SCALE);
-    ctx.lineTo(pouchX + 280 * SCALE, gz.y + gz.h);
-    ctx.closePath();
-    ctx.fill();
-  });
-
-  // Flavor stripe
-  fi(ART_FLAVOR_BG, () => ctx.fillRect(pouchX + fz.x, fz.y, fz.w, fz.h));
-
-  // Nutrition bar
-  fi(ART_NUTRITION_BG, () => ctx.fillRect(pouchX + nz.x, nz.y, nz.w, nz.h));
-
-  // Nutrition text (dark brown positive text) — moved up to clear barcode box
-  fi(ART_BROWN_TEXT, () => {
-    ctx.font = `${9 * SCALE}px Inter, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.fillText(
-      "NET WT 2.5 OZ (70g)  •  GLUTEN FREE  •  NON-GMO",
-      pouchX + POUCH_W / 2,
-      nz.y + 14 * SCALE,
-    );
-  });
-
-  // Reversed-text knockout: destination-out erases actual glyph-shaped pixels.
-  // Inside translate so the hole shifts with this channel's registration offset —
-  // misregistered channels expose a colored fringe at the text edges.
-  ctx.save();
-  ctx.globalCompositeOperation = "destination-out";
-  ctx.globalAlpha = 1;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.font = `900 ${34 * SCALE}px Inter, sans-serif`;
-  ctx.fillText("SUMMIT", pouchX + POUCH_W / 2, hz.y + hz.h * 0.48);
-  ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
-  ctx.fillText("ALPINE CLASSIC CRUNCH", pouchX + POUCH_W / 2, fz.y + fz.h / 2);
-  ctx.restore();
-
-  ctx.restore(); // pop translate + clip
-  ctx.restore(); // pop compositeOperation
-}
-
-// 4× halftone dot grid for one channel — regions mirror drawArtworkForChannel exactly
-function drawPlate(
-  ctx: CanvasRenderingContext2D,
-  channel: "C" | "M" | "Y" | "K",
-  pouchX: number,
-  regX: number,
-  regY: number,
-  gain: number,
-  density: number,
-) {
-  const angle = SCREEN_ANGLE[channel];
-  const densityScale = Math.min(1.5, density / CH_TARGET_DENSITY[channel]);
-  const baseAlpha = Math.min(1, Math.max(MIN_PLATE_ALPHA, density));
-
-  const hz = ZONES[ZONE_HEADER];
-  const gz = ZONES[ZONE_GRAPHIC];
-  const fz = ZONES[ZONE_FLAVOR];
-  const nz = ZONES[ZONE_NUTRITION];
-
-  ctx.save();
-  ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = INK_COLOR[channel];
-  ctx.globalAlpha = baseAlpha;
-
-  ctx.save();
-  const REG_BLEED = 3 * MIL_TO_PX;
-  ctx.beginPath();
-  ctx.rect(pouchX - REG_BLEED, POUCH_TOP - REG_BLEED, POUCH_W + REG_BLEED * 2, POUCH_H + REG_BLEED * 2);
-  ctx.clip();
-  ctx.translate(regX, regY);
-
-  // Draw halftone dots clipped to an arbitrary path. buildPath must leave an open path.
-  function dotsInPath(buildPath: () => void, spanW: number, spanH: number, cx: number, cy: number, art: ArtCmyk) {
-    const coverage = art[channel] * densityScale;
-    if (coverage < 0.01) return;
-    const radius = PITCH * 0.48 * Math.sqrt(coverage) * (1 + gain * 1.5);
-    if (radius < 0.5) return;
-    ctx.save();
-    ctx.beginPath();
-    buildPath();
-    ctx.clip();
-    ctx.translate(cx, cy);
-    ctx.rotate(angle);
-    const span = Math.ceil(Math.hypot(spanW, spanH) / 2) + PITCH;
-    for (let dx = -span; dx <= span; dx += PITCH) {
-      for (let dy = -span; dy <= span; dy += PITCH) {
-        ctx.beginPath();
-        ctx.arc(dx, dy, Math.max(0.5, radius), 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    ctx.restore();
-  }
-
-  function dotsInRect(art: ArtCmyk, rx: number, ry: number, rw: number, rh: number) {
-    dotsInPath(() => ctx.rect(rx, ry, rw, rh), rw, rh, rx + rw / 2, ry + rh / 2, art);
-  }
-
-  // Header background
-  dotsInRect(ART_HEADER_BG, pouchX + hz.x, hz.y, hz.w, hz.h);
-
-  // "TRAIL MIX CO." subtext — solid fill at this scale (text ≈ 100% halftone coverage)
-  {
-    const a = Math.min(1, ART_HEADER_SUB[channel] * densityScale);
-    if (a >= 0.005) {
-      ctx.save();
-      ctx.globalAlpha = a;
-      ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
-      ctx.textAlign = "center";
-      ctx.fillText("TRAIL MIX CO.", pouchX + POUCH_W / 2, hz.y + 54 * SCALE);
-      ctx.restore();
-    }
-  }
-
-  // Sky — upper half / lower half split to match the two-tone gradient
-  dotsInRect(ART_SKY_TOP, pouchX + gz.x, gz.y,             gz.w, gz.h / 2);
-  dotsInRect(ART_SKY_BOT, pouchX + gz.x, gz.y + gz.h / 2, gz.w, gz.h / 2);
-
-  // Sun semicircle — exact arc path
-  dotsInPath(
-    () => {
-      ctx.arc(pouchX + POUCH_W / 2, gz.y + 50 * SCALE, 36 * SCALE, Math.PI, 0);
-      ctx.closePath();
-    },
-    72 * SCALE, 36 * SCALE,
-    pouchX + POUCH_W / 2, gz.y + 50 * SCALE,
-    ART_SUN,
-  );
-
-  // Mountain silhouette — exact polygon path
-  dotsInPath(
-    () => {
-      ctx.moveTo(pouchX,               gz.y + gz.h);
-      ctx.lineTo(pouchX +  60 * SCALE,  gz.y + 100 * SCALE);
-      ctx.lineTo(pouchX + 110 * SCALE,  gz.y + 150 * SCALE);
-      ctx.lineTo(pouchX + 140 * SCALE,  gz.y +  90 * SCALE);
-      ctx.lineTo(pouchX + 180 * SCALE,  gz.y + 140 * SCALE);
-      ctx.lineTo(pouchX + 220 * SCALE,  gz.y + 110 * SCALE);
-      ctx.lineTo(pouchX + 280 * SCALE,  gz.y + gz.h);
-      ctx.closePath();
-    },
-    POUCH_W, gz.h,
-    pouchX + POUCH_W / 2, gz.y + gz.h * 0.7,
-    ART_MOUNTAIN,
-  );
-
-  // Flavor stripe
-  dotsInRect(ART_FLAVOR_BG, pouchX + fz.x, fz.y, fz.w, fz.h);
-
-  // Nutrition bar
-  dotsInRect(ART_NUTRITION_BG, pouchX + nz.x, nz.y, nz.w, nz.h);
-
-  // Nutrition text — solid fill at this scale, moved up to clear barcode box
-  {
-    const a = Math.min(1, ART_BROWN_TEXT[channel] * densityScale);
-    if (a >= 0.005) {
-      ctx.save();
-      ctx.globalAlpha = a;
-      ctx.font = `${9 * SCALE}px Inter, sans-serif`;
-      ctx.textAlign = "center";
-      ctx.fillText(
-        "NET WT 2.5 OZ (70g)  •  GLUTEN FREE  •  NON-GMO",
-        pouchX + POUCH_W / 2,
-        nz.y + 14 * SCALE,
-      );
-      ctx.restore();
-    }
-  }
-
-  // Reversed-text knockout — glyph-shaped destination-out, shifts with this channel's reg
-  ctx.save();
-  ctx.globalCompositeOperation = "destination-out";
-  ctx.globalAlpha = 1;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.font = `900 ${34 * SCALE}px Inter, sans-serif`;
-  ctx.fillText("SUMMIT", pouchX + POUCH_W / 2, hz.y + hz.h * 0.48);
-  ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
-  ctx.fillText("ALPINE CLASSIC CRUNCH", pouchX + POUCH_W / 2, fz.y + fz.h / 2);
-  ctx.restore();
-
-  ctx.restore();
-  ctx.restore();
-}
-
-
-const CH_COLORS: Record<"C" | "M" | "Y" | "K", string> = {
-  C: "#00bef0", M: "#e0009a", Y: "#c89400", K: "#222",
-};
-
-export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const viewportRef = useRef<HTMLDivElement>(null);
-  // Reused offscreen canvas for per-channel compositing (avoids per-frame allocation)
+export function PrintPreview({ job, settings, outcome }: PrintPreviewProps) {
+  const canvasRef    = useRef<HTMLCanvasElement>(null);
+  const viewportRef  = useRef<HTMLDivElement>(null);
   const offscreenRef = useRef<OffscreenCanvas | null>(null);
   const [zoom, setZoom] = useState<ZoomLevel>(1);
-  const zoomIdx = ZOOM_LEVELS.indexOf(zoom);
+  const zoomIdx  = ZOOM_LEVELS.indexOf(zoom);
   const showDots = zoom === 4;
 
-  const [channelVisible, setChannelVisible] = useState<Record<"C"|"M"|"Y"|"K", boolean>>(
-    { C: true, M: true, Y: true, K: true },
+  // Channel visibility — synced with active channels in settings
+  const [channelVisible, setChannelVisible] = useState<Record<ChannelId, boolean>>(() =>
+    Object.fromEntries(Object.keys(settings.inkChannels).map(id => [id, true]))
   );
-  function toggleChannel(ch: "C"|"M"|"Y"|"K") {
-    setChannelVisible(prev => ({ ...prev, [ch]: !prev[ch] }));
+  useEffect(() => {
+    setChannelVisible(prev => {
+      const activeIds = Object.keys(settings.inkChannels);
+      const next: Record<ChannelId, boolean> = {};
+      for (const id of activeIds) next[id] = prev[id] ?? true;
+      return next;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Object.keys(settings.inkChannels).sort().join(",")]);
+
+  function toggleChannel(id: ChannelId) {
+    setChannelVisible(prev => ({ ...prev, [id]: !prev[id] }));
   }
 
-  // Pan state (only active at 4×)
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const dragStart = useRef<{ mx: number; my: number; ox: number; oy: number } | null>(null);
 
-  // Reset pan when leaving 4×
   useEffect(() => {
     if (zoom !== 4) setPanOffset({ x: 0, y: 0 });
   }, [zoom]);
@@ -444,7 +159,6 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      // Substrate background
       ctx.fillStyle = "#f6f1e8";
       ctx.fillRect(0, 0, W_CANVAS, H_CANVAS);
       ctx.fillStyle = "#fffdf8";
@@ -452,89 +166,93 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
       ctx.roundRect(4 * SCALE, 4 * SCALE, W_CANVAS - 8 * SCALE, H_CANVAS - 8 * SCALE, 6 * SCALE);
       ctx.fill();
 
-      // Per-channel offscreen compositing: draw each channel to a transparent offscreen,
-      // erase knockout areas with destination-out (giving true glyph-shaped holes),
-      // then composite onto main with multiply. This prevents each channel's knockout
-      // from overwriting ink already contributed by other channels.
       if (!offscreenRef.current) {
         offscreenRef.current = new OffscreenCanvas(W_CANVAS, H_CANVAS);
       }
       const offscreen = offscreenRef.current;
       const offCtx = offscreen.getContext("2d")!;
 
-      for (const ch of ["Y", "M", "C", "K"] as const) {
-        if (!channelVisible[ch]) continue;
+      const drawChannel = ARTWORK_RENDERERS[job.id] ?? drawLabelPrintChannel;
+
+      // Sort: white backing first, then process channels Y→M→C→K, then other spots
+      const activeChannels = job.channels.filter(ch => ch.id in settings.inkChannels);
+      const PROCESS_ORDER = ["Y", "M", "C", "K"];
+      const sortedChannels = [
+        ...activeChannels.filter(ch => ch.id === "white"),
+        ...activeChannels.filter(ch => ch.isProcess).sort(
+          (a, b) => PROCESS_ORDER.indexOf(a.id) - PROCESS_ORDER.indexOf(b.id)
+        ),
+        ...activeChannels.filter(ch => !ch.isProcess && ch.id !== "white"),
+      ];
+
+      for (const chDef of sortedChannels) {
+        if (!channelVisible[chDef.id]) continue;
         offCtx.clearRect(0, 0, W_CANVAS, H_CANVAS);
 
         for (const pouchX of POUCH_ORIGINS) {
-          const regX = settings.registration[REG_KEYS[ch].x] * MIL_TO_PX;
-          const regY = settings.registration[REG_KEYS[ch].y] * MIL_TO_PX;
-          if (showDots) {
-            drawPlate(offCtx as unknown as CanvasRenderingContext2D, ch, pouchX, regX, regY, outcome.channelGain[ch], outcome.channelDensity[ch]);
-          } else {
-            drawArtworkForChannel(offCtx as unknown as CanvasRenderingContext2D, ch, pouchX, regX, regY, outcome.channelDensity[ch]);
-          }
+          const reg  = settings.registration[chDef.id] ?? { x: 0, y: 0 };
+          const regX = reg.x * MIL_TO_PX;
+          const regY = reg.y * MIL_TO_PX;
+          drawChannel(
+            offCtx as unknown as CanvasRenderingContext2D,
+            chDef, pouchX, regX, regY,
+            outcome.channelDensity[chDef.id] ?? 0,
+            outcome.channelGain[chDef.id] ?? 0,
+            showDots,
+          );
         }
 
-        // Barcode box knockout at natural position (not shifted by registration).
-        // All channels clear this area so the white substrate shows through as the box background.
-        offCtx.save();
-        offCtx.globalCompositeOperation = "destination-out";
-        offCtx.globalAlpha = 1;
-        for (const pouchX of POUCH_ORIGINS) {
-          offCtx.fillRect(pouchX + BC_BOX_X, BC_BOX_Y, BC_BOX_W, BC_BOX_H);
-        }
-        offCtx.restore();
-
-        // K channel only: draw barcode bars shifted by K's registration offset
-        if (ch === "K") {
-          const kRegX = settings.registration[REG_KEYS.K.x] * MIL_TO_PX;
-          const kRegY = settings.registration[REG_KEYS.K.y] * MIL_TO_PX;
-          const kAlpha = Math.min(1, Math.max(MIN_PLATE_ALPHA, outcome.channelDensity.K / CH_TARGET_DENSITY.K));
+        // Snack pouch: barcode box knockout + K bars
+        if (job.id === "snack-pouch-cmyk") {
           offCtx.save();
-          offCtx.globalCompositeOperation = "source-over";
-          offCtx.fillStyle = INK_COLOR.K;
-          offCtx.globalAlpha = kAlpha;
+          offCtx.globalCompositeOperation = "destination-out";
+          offCtx.globalAlpha = 1;
           for (const pouchX of POUCH_ORIGINS) {
-            const bx = pouchX + BC_BOX_X + BC_PAD + BC_QUIET + kRegX;
-            const by = BC_BOX_Y + BC_PAD + kRegY;
-            for (let i = 0; i < BC_PATTERN.length; i++) {
-              if (BC_PATTERN[i] === "1") {
-                const isGuard = i < 3 || (i >= 45 && i <= 49) || i >= 92;
-                offCtx.fillRect(bx + i * BC_MODULE, by, BC_MODULE, isGuard ? BC_GUARD_H : BC_BAR_H);
-              }
-            }
-            // Digit numbers below bars
-            offCtx.save();
-            offCtx.globalAlpha = kAlpha;
-            offCtx.font = `${5 * SCALE}px Inter, sans-serif`;
-            offCtx.textAlign = "center";
-            offCtx.textBaseline = "top";
-            const numY = by + BC_GUARD_H + 2;
-            const leftCX  = bx + 3 * BC_MODULE + (42 * BC_MODULE) / 2;
-            const rightCX = bx + (3 + 42 + 5) * BC_MODULE + (42 * BC_MODULE) / 2;
-            offCtx.fillText(BC_DIGITS.slice(0, 6),  leftCX,  numY);
-            offCtx.fillText(BC_DIGITS.slice(6, 12), rightCX, numY);
-            offCtx.restore();
+            offCtx.fillRect(pouchX + BC_BOX_X, BC_BOX_Y, BC_BOX_W, BC_BOX_H);
           }
           offCtx.restore();
+
+          if (chDef.id === "K") {
+            const reg  = settings.registration["K"] ?? { x: 0, y: 0 };
+            const kRegX = reg.x * MIL_TO_PX;
+            const kRegY = reg.y * MIL_TO_PX;
+            const kDensity = outcome.channelDensity["K"] ?? 0;
+            const kAlpha = Math.min(1, Math.max(MIN_PLATE_ALPHA, kDensity / 1.6));
+            offCtx.save();
+            offCtx.globalCompositeOperation = "source-over";
+            offCtx.fillStyle = "#141414";
+            offCtx.globalAlpha = kAlpha;
+            for (const pouchX of POUCH_ORIGINS) {
+              const bx = pouchX + BC_BOX_X + BC_PAD + BC_QUIET + kRegX;
+              const by = BC_BOX_Y + BC_PAD + kRegY;
+              for (let i = 0; i < BC_PATTERN.length; i++) {
+                if (BC_PATTERN[i] === "1") {
+                  const isGuard = i < 3 || (i >= 45 && i <= 49) || i >= 92;
+                  offCtx.fillRect(bx + i * BC_MODULE, by, BC_MODULE, isGuard ? BC_GUARD_H : BC_BAR_H);
+                }
+              }
+              offCtx.save();
+              offCtx.font = `${5 * SCALE}px Inter, sans-serif`;
+              offCtx.textAlign = "center";
+              offCtx.textBaseline = "top";
+              offCtx.fillText(BC_DIGITS.slice(0, 6),  bx + 3 * BC_MODULE + 21 * BC_MODULE, by + BC_GUARD_H + 2);
+              offCtx.fillText(BC_DIGITS.slice(6, 12), bx + (3 + 42 + 5) * BC_MODULE + 21 * BC_MODULE, by + BC_GUARD_H + 2);
+              offCtx.restore();
+            }
+            offCtx.restore();
+          }
         }
 
-        // Composite this channel onto the main canvas using multiply blend
         ctx.save();
         ctx.globalCompositeOperation = "multiply";
         ctx.drawImage(offscreen, 0, 0);
         ctx.restore();
       }
 
-      // Die-cut outlines drawn last so they sit on top of any bleeding dots
       for (const pouchX of POUCH_ORIGINS) {
         drawDieCut(ctx, pouchX);
       }
 
-      // Defect overlays below are web-wide (not per-pouch) — positions scatter across full canvas width
-
-      // Pinhole defects — small white voids scattered across full web
       if (outcome.defects.pinholes > 0) {
         ctx.save();
         ctx.globalAlpha = outcome.defects.pinholes / 100;
@@ -552,7 +270,6 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
         ctx.restore();
       }
 
-      // Dirty print — horizontal ink slur streaks
       if (outcome.defects.dirtyPrint > 0) {
         ctx.save();
         ctx.globalAlpha = (outcome.defects.dirtyPrint / 100) * 0.4;
@@ -568,7 +285,6 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
         ctx.restore();
       }
 
-      // Skips — elongated white voids (broken ink transfer)
       if (outcome.defects.skips > 0) {
         ctx.save();
         ctx.globalAlpha = (outcome.defects.skips / 100) * 0.7;
@@ -584,7 +300,6 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
         ctx.restore();
       }
 
-      // Edge squash is per-pouch — loops POUCH_ORIGINS because it renders at zone edges
       if (outcome.defects.edgeSquash > 0) {
         ctx.save();
         ctx.globalAlpha = (outcome.defects.edgeSquash / 100) * 0.35;
@@ -610,7 +325,6 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
         ctx.restore();
       }
 
-      // Mottle — uneven ink film (radial gradient blotches)
       if (outcome.defects.mottle > 0) {
         ctx.save();
         ctx.globalAlpha = (outcome.defects.mottle / 100) * 0.18;
@@ -628,25 +342,28 @@ export function PrintPreview({ settings, outcome }: PrintPreviewProps) {
     });
 
     return () => { cancelled = true; cancelAnimationFrame(frameId); };
-  }, [settings, outcome, showDots, channelVisible]);
+  }, [job, settings, outcome, showDots, channelVisible]);
 
   return (
     <section className="print-preview" aria-label="Live print sample">
       <div className="print-preview__header">
         <span>Live print sample</span>
         <div className="channel-toggles" role="group" aria-label="Visible channels">
-          {(["C", "M", "Y", "K"] as const).map((ch) => (
-            <button
-              key={ch}
-              type="button"
-              aria-pressed={channelVisible[ch]}
-              className={`ch-toggle-btn${channelVisible[ch] ? " ch-toggle-btn--on" : ""}`}
-              style={{ "--ch-color": CH_COLORS[ch] } as React.CSSProperties}
-              onClick={() => toggleChannel(ch)}
-            >
-              {ch}
-            </button>
-          ))}
+          {job.channels
+            .filter(ch => ch.id in settings.inkChannels)
+            .map(ch => (
+              <button
+                key={ch.id}
+                type="button"
+                aria-pressed={channelVisible[ch.id]}
+                className={`ch-toggle-btn${channelVisible[ch.id] ? " ch-toggle-btn--on" : ""}`}
+                style={{ "--ch-color": ch.displayColor } as React.CSSProperties}
+                onClick={() => toggleChannel(ch.id)}
+                aria-label={ch.name}
+              >
+                {ch.id.length === 1 ? ch.id : ch.id.slice(0, 2).toUpperCase()}
+              </button>
+            ))}
         </div>
         <div className="zoom-controls">
           <button
