@@ -181,7 +181,7 @@ function drawArtworkForChannel(
   ctx.restore(); // pop compositeOperation
 }
 
-// 4× halftone dot grid for one channel — regions match drawArtworkForChannel exactly
+// 4× halftone dot grid for one channel — regions mirror drawArtworkForChannel exactly
 function drawPlate(
   ctx: CanvasRenderingContext2D,
   channel: "C" | "M" | "Y" | "K",
@@ -206,24 +206,25 @@ function drawPlate(
   ctx.globalAlpha = baseAlpha;
 
   ctx.save();
-  const REG_BLEED = 3 * MIL_TO_PX; // 48px — allows dots to bleed visibly into gutter whitespace
+  const REG_BLEED = 3 * MIL_TO_PX;
   ctx.beginPath();
   ctx.rect(pouchX - REG_BLEED, POUCH_TOP - REG_BLEED, POUCH_W + REG_BLEED * 2, POUCH_H + REG_BLEED * 2);
   ctx.clip();
   ctx.translate(regX, regY);
 
-  function dotsInRect(art: ArtCmyk, rx: number, ry: number, rw: number, rh: number) {
+  // Draw halftone dots clipped to an arbitrary path. buildPath must leave an open path.
+  function dotsInPath(buildPath: () => void, spanW: number, spanH: number, cx: number, cy: number, art: ArtCmyk) {
     const coverage = art[channel] * densityScale;
     if (coverage < 0.01) return;
     const radius = PITCH * 0.48 * Math.sqrt(coverage) * (1 + gain * 1.5);
     if (radius < 0.5) return;
     ctx.save();
     ctx.beginPath();
-    ctx.rect(rx, ry, rw, rh);
+    buildPath();
     ctx.clip();
-    ctx.translate(rx + rw / 2, ry + rh / 2);
+    ctx.translate(cx, cy);
     ctx.rotate(angle);
-    const span = Math.ceil(Math.hypot(rw, rh) / 2) + PITCH;
+    const span = Math.ceil(Math.hypot(spanW, spanH) / 2) + PITCH;
     for (let dx = -span; dx <= span; dx += PITCH) {
       for (let dy = -span; dy <= span; dy += PITCH) {
         ctx.beginPath();
@@ -234,21 +235,80 @@ function drawPlate(
     ctx.restore();
   }
 
+  function dotsInRect(art: ArtCmyk, rx: number, ry: number, rw: number, rh: number) {
+    dotsInPath(() => ctx.rect(rx, ry, rw, rh), rw, rh, rx + rw / 2, ry + rh / 2, art);
+  }
+
   // Header background
   dotsInRect(ART_HEADER_BG, pouchX + hz.x, hz.y, hz.w, hz.h);
 
-  // Sky — upper half / lower half of graphic zone
-  dotsInRect(ART_SKY_TOP, pouchX + gz.x, gz.y,              gz.w, gz.h / 2);
-  dotsInRect(ART_SKY_BOT, pouchX + gz.x, gz.y + gz.h / 2,  gz.w, gz.h / 2);
+  // "TRAIL MIX CO." subtext — solid fill at this scale (text ≈ 100% halftone coverage)
+  {
+    const a = Math.min(1, ART_HEADER_SUB[channel] * densityScale);
+    if (a >= 0.005) {
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.fillText("TRAIL MIX CO.", pouchX + POUCH_W / 2, hz.y + 54 * SCALE);
+      ctx.restore();
+    }
+  }
 
-  // Mountain — lower ~55% of graphic zone (matches polygon extents)
-  dotsInRect(ART_MOUNTAIN, pouchX + gz.x, gz.y + gz.h * 0.45, gz.w, gz.h * 0.55);
+  // Sky — upper half / lower half split to match the two-tone gradient
+  dotsInRect(ART_SKY_TOP, pouchX + gz.x, gz.y,             gz.w, gz.h / 2);
+  dotsInRect(ART_SKY_BOT, pouchX + gz.x, gz.y + gz.h / 2, gz.w, gz.h / 2);
+
+  // Sun semicircle — exact arc path
+  dotsInPath(
+    () => {
+      ctx.arc(pouchX + POUCH_W / 2, gz.y + 50 * SCALE, 36 * SCALE, Math.PI, 0);
+      ctx.closePath();
+    },
+    72 * SCALE, 36 * SCALE,
+    pouchX + POUCH_W / 2, gz.y + 50 * SCALE,
+    ART_SUN,
+  );
+
+  // Mountain silhouette — exact polygon path
+  dotsInPath(
+    () => {
+      ctx.moveTo(pouchX,               gz.y + gz.h);
+      ctx.lineTo(pouchX +  60 * SCALE,  gz.y + 100 * SCALE);
+      ctx.lineTo(pouchX + 110 * SCALE,  gz.y + 150 * SCALE);
+      ctx.lineTo(pouchX + 140 * SCALE,  gz.y +  90 * SCALE);
+      ctx.lineTo(pouchX + 180 * SCALE,  gz.y + 140 * SCALE);
+      ctx.lineTo(pouchX + 220 * SCALE,  gz.y + 110 * SCALE);
+      ctx.lineTo(pouchX + 280 * SCALE,  gz.y + gz.h);
+      ctx.closePath();
+    },
+    POUCH_W, gz.h,
+    pouchX + POUCH_W / 2, gz.y + gz.h * 0.7,
+    ART_MOUNTAIN,
+  );
 
   // Flavor stripe
   dotsInRect(ART_FLAVOR_BG, pouchX + fz.x, fz.y, fz.w, fz.h);
 
   // Nutrition bar
   dotsInRect(ART_NUTRITION_BG, pouchX + nz.x, nz.y, nz.w, nz.h);
+
+  // Nutrition text — solid fill at this scale
+  {
+    const a = Math.min(1, ART_BROWN_TEXT[channel] * densityScale);
+    if (a >= 0.005) {
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.font = `${9 * SCALE}px Inter, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.fillText(
+        "NET WT 2.5 OZ (70g)  •  GLUTEN FREE  •  NON-GMO",
+        pouchX + POUCH_W / 2,
+        nz.y + 40 * SCALE,
+      );
+      ctx.restore();
+    }
+  }
 
   ctx.restore();
   ctx.restore();
