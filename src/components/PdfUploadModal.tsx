@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 import type { ChannelId } from "../domain/types";
 import type { CustomPdfJob } from "../domain/types";
-import { autoMapLayers } from "../pdf/autoMapper";
+import { autoMapColorants } from "../pdf/autoMapper";
 import { buildCustomJob } from "../pdf/buildCustomJob";
-import { extractLayers } from "../pdf/extractLayers";
+import { extractSeparations } from "../pdf/extractSeparations";
 
 type LayerRow = { name: string; channelId: ChannelId | "ignore" };
 
@@ -35,9 +35,9 @@ export function PdfUploadModal({ onConfirm, onCancel }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const { names, images } = await extractLayers(file);
+      const { names, images } = await extractSeparations(file);
       imagesRef.current = images;
-      const mapping = autoMapLayers(names);
+      const mapping = autoMapColorants(names);
       setFilename(file.name);
       setRows(names.map(name => ({ name, channelId: mapping[name] })));
       setStep("map");
@@ -69,7 +69,7 @@ export function PdfUploadModal({ onConfirm, onCancel }: Props) {
 
         {step === "pick" && (
           <div className="modal-body">
-            <p>Select a color-separated PDF with OCG layers (one layer per ink channel).</p>
+            <p>Select a PDF with color separations (one Separation color space per ink channel).</p>
             {error && <p className="modal-error" role="alert">{error}</p>}
             {loading ? (
               <p className="modal-loading">Reading PDF…</p>
@@ -91,12 +91,12 @@ export function PdfUploadModal({ onConfirm, onCancel }: Props) {
         {step === "map" && (
           <div className="modal-body">
             <p>
-              Map each PDF layer to an ink channel. Layers set to <em>Ignore</em> will not be printed.
+              Map each color separation to an ink channel. Separations set to <em>Ignore</em> will not be printed.
             </p>
             <table className="layer-map-table" data-testid="layer-map-table">
               <thead>
                 <tr>
-                  <th>Layer name</th>
+                  <th>Separation</th>
                   <th>Maps to</th>
                 </tr>
               </thead>

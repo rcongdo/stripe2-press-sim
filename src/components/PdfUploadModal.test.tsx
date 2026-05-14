@@ -3,12 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PdfUploadModal } from "./PdfUploadModal";
 
-vi.mock("../pdf/extractLayers", () => ({
-  extractLayers: vi.fn(),
+vi.mock("../pdf/extractSeparations", () => ({
+  extractSeparations: vi.fn(),
 }));
 
-import { extractLayers } from "../pdf/extractLayers";
-const mockExtractLayers = vi.mocked(extractLayers);
+import { extractSeparations } from "../pdf/extractSeparations";
+const mockExtractSeparations = vi.mocked(extractSeparations);
 
 describe("PdfUploadModal", () => {
   const onConfirm = vi.fn();
@@ -17,7 +17,7 @@ describe("PdfUploadModal", () => {
   beforeEach(() => {
     onConfirm.mockClear();
     onCancel.mockClear();
-    mockExtractLayers.mockClear();
+    mockExtractSeparations.mockClear();
   });
 
   it("renders file pick step initially", () => {
@@ -27,7 +27,7 @@ describe("PdfUploadModal", () => {
   });
 
   it("transitions to mapping step after file selection", async () => {
-    mockExtractLayers.mockResolvedValue({
+    mockExtractSeparations.mockResolvedValue({
       names:  ["Cyan", "Black"],
       images: { Cyan: {} as ImageBitmap, Black: {} as ImageBitmap },
     });
@@ -45,7 +45,7 @@ describe("PdfUploadModal", () => {
   });
 
   it("calls onConfirm with CustomPdfJob when confirmed", async () => {
-    mockExtractLayers.mockResolvedValue({
+    mockExtractSeparations.mockResolvedValue({
       names:  ["Cyan", "Black"],
       images: { Cyan: {} as ImageBitmap, Black: {} as ImageBitmap },
     });
@@ -72,8 +72,8 @@ describe("PdfUploadModal", () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
-  it("shows an error alert when extractLayers rejects", async () => {
-    mockExtractLayers.mockRejectedValue(new Error("Invalid PDF"));
+  it("shows an error alert when extractSeparations rejects", async () => {
+    mockExtractSeparations.mockRejectedValue(new Error("No color separations found"));
 
     render(<PdfUploadModal onConfirm={onConfirm} onCancel={onCancel} />);
     await userEvent.upload(
@@ -82,13 +82,13 @@ describe("PdfUploadModal", () => {
     );
 
     await waitFor(() =>
-      expect(screen.getByRole("alert")).toHaveTextContent("Invalid PDF")
+      expect(screen.getByRole("alert")).toHaveTextContent("No color separations found")
     );
     expect(screen.queryByTestId("layer-map-table")).not.toBeInTheDocument();
   });
 
   it("disables Confirm when all rows are mapped to ignore", async () => {
-    mockExtractLayers.mockResolvedValue({
+    mockExtractSeparations.mockResolvedValue({
       names:  ["Spot UV"],
       images: { "Spot UV": {} as ImageBitmap },
     });
@@ -100,7 +100,6 @@ describe("PdfUploadModal", () => {
     );
 
     await waitFor(() => screen.getByTestId("confirm-mapping"));
-    // "Spot UV" auto-maps to "ignore" → button should be disabled
     expect(screen.getByTestId("confirm-mapping")).toBeDisabled();
   });
 });
