@@ -247,6 +247,121 @@ h3 {
   text-align: center;
 }
 
+/* ── PDF Upload Modal ─────────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal-box {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
+  width: 520px;
+  max-width: 95vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid #e8edf1;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #697784;
+  padding: 0 0.2rem;
+}
+
+.modal-body {
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 1rem;
+}
+
+.modal-error {
+  color: #c0392b;
+  font-size: 0.85rem;
+  margin: 0.5rem 0;
+}
+
+.modal-loading {
+  color: #697784;
+  font-size: 0.9rem;
+}
+
+.file-drop-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #b0bec5;
+  border-radius: 8px;
+  padding: 2rem;
+  cursor: pointer;
+  color: #455a64;
+  font-size: 0.9rem;
+  transition: border-color 0.15s;
+}
+
+.file-drop-zone:hover {
+  border-color: #1976d2;
+  color: #1976d2;
+}
+
+.layer-map-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  margin-top: 0.75rem;
+}
+
+.layer-map-table th,
+.layer-map-table td {
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #e8edf1;
+}
+
+.layer-map-table th {
+  font-weight: 600;
+  color: #455a64;
+}
+
+.layer-map-table select {
+  font-size: 0.85rem;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid #cfd8dc;
+  border-radius: 4px;
+}
+
 .ch-val {
   text-align: right;
   font-variant-numeric: tabular-nums;
