@@ -60,6 +60,7 @@ function stationHealthColor(density: number, target: number): string {
 
 // Web tension: low=0, high=1; affects sag on approach/exit paths
 function tensionNorm(webTension: number, min: number, max: number): number {
+  if (max === min) return 0.5;
   return (webTension - min) / (max - min);
 }
 
@@ -108,6 +109,17 @@ export function PressOverview({ job, settings, outcome, mode, selectedChannelId,
 
   return (
     <div className="press-overview" data-testid="press-overview" style={{ position: "relative" }}>
+      {/* Learn mode tooltip */}
+      {tooltip && PRESS_EDUCATION[tooltip.key] && (
+        <div
+          className="learn-tooltip"
+          style={{ position: "static", marginBottom: 8, pointerEvents: "auto", cursor: "pointer" }}
+          onClick={() => setTooltip(null)}
+        >
+          <div className="learn-tooltip__name">{PRESS_EDUCATION[tooltip.key].name}</div>
+          {PRESS_EDUCATION[tooltip.key].description}
+        </div>
+      )}
       <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} xmlns="http://www.w3.org/2000/svg">
         {/* Web: approach from unwind */}
         <path
@@ -162,8 +174,6 @@ export function PressOverview({ job, settings, outcome, mode, selectedChannelId,
           x={DRYER_X - DRYER_W / 2} y={DRYER_Y - DRYER_H / 2}
           width={DRYER_W} height={DRYER_H} rx="4"
           fill={dryerColor(outcome.dryingRisk)} stroke="#697784" strokeWidth="1.5"
-          style={{ cursor: mode === "learn" ? "pointer" : "default" }}
-          onClick={() => handleLabelClick("dryer", DRYER_X, DRYER_Y - DRYER_H / 2 - 20)}
         />
         <text x={DRYER_X} y={DRYER_Y + 4} textAnchor="middle" fontSize="9" fill="#fff" fontWeight="600">
           DRYER
@@ -242,17 +252,6 @@ export function PressOverview({ job, settings, outcome, mode, selectedChannelId,
         </defs>
       </svg>
 
-      {/* Learn mode tooltip */}
-      {tooltip && PRESS_EDUCATION[tooltip.key] && (
-        <div
-          className="learn-tooltip"
-          style={{ top: tooltip.y, left: Math.min(tooltip.x, SVG_W - 280) }}
-          onClick={() => setTooltip(null)}
-        >
-          <div className="learn-tooltip__name">{PRESS_EDUCATION[tooltip.key].name}</div>
-          {PRESS_EDUCATION[tooltip.key].description}
-        </div>
-      )}
     </div>
   );
 }
