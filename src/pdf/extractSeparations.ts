@@ -94,8 +94,11 @@ async function analyzeColorSpaces(buffer: ArrayBuffer): Promise<AnalysisResult> 
       if (!xObj) continue;
       const csRef = xObj.get(PDFName.of("ColorSpace"));
       if (!csRef) continue;
-      const csName = pdfDoc.context.lookupMaybe(csRef, PDFName);
-      if (csName?.asString() === "/DeviceCMYK") { hasCmyk = true; break outer; }
+      const csObj = pdfDoc.context.lookup(csRef);
+      if (csObj instanceof PDFName && csObj.asString() === "/DeviceCMYK") {
+        hasCmyk = true;
+        break outer;
+      }
     }
   }
 
