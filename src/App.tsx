@@ -4,6 +4,7 @@ import { ControlPanel } from "./components/ControlPanel";
 import { MetricsStrip } from "./components/MetricsStrip";
 import { PressModel } from "./components/PressModel";
 import { PrintPreview } from "./components/PrintPreview";
+import { PdfUploadModal } from "./components/PdfUploadModal";
 import { ScoreModal } from "./components/ScoreModal";
 import { JOB_REGISTRY, snackPouchJob } from "./domain/jobs";
 import {
@@ -16,6 +17,7 @@ import {
 } from "./domain/settings";
 import type {
   ChannelId,
+  CustomPdfJob,
   InkChannelSettingKey,
   JobPreset,
   PressSettingKey,
@@ -33,12 +35,17 @@ export default function App() {
   const [selectedChannelId, setSelectedChannelId] = useState<ChannelId>(
     snackPouchJob.channels.find(ch => ch.initiallyActive)?.id ?? "C"
   );
+  const [customJob,      setCustomJob]      = useState<CustomPdfJob | null>(null);
+  const [showPdfUpload,  setShowPdfUpload]  = useState(false);
 
-  const outcome = useMemo(() => simulatePress(selectedJob, settings), [selectedJob, settings]);
+  const activeJob = customJob ?? selectedJob;
+
+  const outcome = useMemo(() => simulatePress(activeJob, settings), [activeJob, settings]);
   const coaching = filterCoaching(outcome.coaching, mode);
 
   function switchJob(job: JobPreset) {
     setSelectedJob(job);
+    setCustomJob(null);
     setSettings(createInitialSettings(job));
     setScore(null);
     setSelectedChannelId(job.channels.find(ch => ch.initiallyActive)?.id ?? "C");
@@ -87,14 +94,21 @@ export default function App() {
         <div className="header-actions">
           <select
             className="job-selector"
-            value={selectedJob.id}
+            value={customJob ? "__custom__" : selectedJob.id}
             aria-label="Select job"
             onChange={e => {
-              const job = JOB_REGISTRY.find(j => j.id === e.target.value);
-              if (job) switchJob(job);
+              if (e.target.value === "__custom__") {
+                setShowPdfUpload(true);
+              } else {
+                const job = JOB_REGISTRY.find(j => j.id === e.target.value);
+                if (job) switchJob(job);
+              }
             }}
           >
             {JOB_REGISTRY.map(j => <option key={j.id} value={j.id}>{j.name}</option>)}
+            <option value="__custom__">
+              {customJob ? customJob.name : "Custom PDF…"}
+            </option>
           </select>
           <button type="button" className="secondary-button" onClick={resetJob}>Reset job</button>
           <button type="button" className="secondary-button" onClick={makePerfect}>Make perfect</button>
@@ -103,7 +117,7 @@ export default function App() {
       </header>
 
       <MetricsStrip
-        job={selectedJob}
+        job={activeJob}
         settings={settings}
         outcome={outcome}
         mode={mode}
@@ -129,10 +143,10 @@ export default function App() {
             </button>
           </div>
           {activeTab === "output" ? (
-            <PrintPreview settings={settings} outcome={outcome} job={selectedJob} />
+            <PrintPreview settings={settings} outcome={outcome} job={activeJob} />
           ) : (
             <PressModel
-              job={selectedJob}
+              job={activeJob}
               settings={settings}
               outcome={outcome}
               selectedChannelId={selectedChannelId}
@@ -142,7 +156,7 @@ export default function App() {
           <CoachPanel messages={coaching} mode={mode} onModeChange={setMode} />
         </div>
         <ControlPanel
-          job={selectedJob}
+          job={activeJob}
           settings={settings}
           mode={mode}
           selectedChannelId={selectedChannelId}
@@ -153,6 +167,18 @@ export default function App() {
         />
       </div>
       <ScoreModal score={score} onClose={() => setScore(null)} onReset={resetJob} />
+      {showPdfUpload && (
+        <PdfUploadModal
+          onConfirm={job => {
+            setCustomJob(job);
+            setSettings(createInitialSettings(job));
+            setScore(null);
+            setSelectedChannelId(job.channels.find(ch => ch.initiallyActive)?.id ?? "C");
+            setShowPdfUpload(false);
+          }}
+          onCancel={() => setShowPdfUpload(false)}
+        />
+      )}
     </main>
   );
 }

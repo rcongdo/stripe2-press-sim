@@ -1,7 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import App from "./App";
+
+// PdfUploadModal transitively imports pdfjs-dist with a ?url worker asset that
+// cannot be resolved in the jsdom test environment. Mock the module so that
+// App.test.tsx can import App without triggering the asset-URL resolution.
+vi.mock("./pdf/extractLayers", () => ({
+  extractLayers: vi.fn(),
+}));
 
 describe("App", () => {
   it("updates metrics when the learner changes press speed", async () => {
