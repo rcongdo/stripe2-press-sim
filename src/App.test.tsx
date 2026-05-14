@@ -41,4 +41,11 @@ describe("App", () => {
     fireEvent.change(select, { target: { value: "label-print" } });
     expect(screen.getByLabelText(/Press speed/i)).toHaveValue("580");
   });
+
+  it("switches to press model tab when Press Model button is clicked", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Press Model" }));
+    expect(screen.getByTestId("press-overview")).toBeInTheDocument();
+  });
 });

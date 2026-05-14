@@ -18,6 +18,7 @@ type ControlPanelProps = {
   onRegistrationChange: (channelId: ChannelId, offset: RegistrationOffset) => void;
   onInkChannelChange: (channel: ChannelId, key: InkChannelSettingKey, value: number) => void;
   onSpotChannelToggle: (channelId: ChannelId, active: boolean) => void;
+  onChannelSelect?: (id: ChannelId) => void;
 };
 
 const sliderKeys: PressSettingKey[] = ["webTension", "dryerTemperature", "pressSpeed"];
@@ -57,11 +58,17 @@ function InfoTip({ text }: { text: string }) {
 export function ControlPanel({
   job, settings, mode,
   onSettingChange, onRegistrationChange, onInkChannelChange, onSpotChannelToggle,
+  onChannelSelect,
 }: ControlPanelProps) {
   const guided = mode === "guided";
 
   const firstActive = job.channels.find(ch => ch.id in settings.inkChannels);
   const [selectedId, setSelectedId] = useState<ChannelId>(firstActive?.id ?? "C");
+
+  function selectChannel(id: ChannelId) {
+    setSelectedId(id);
+    onChannelSelect?.(id);
+  }
 
   const effectiveId = selectedId in settings.inkChannels
     ? selectedId
@@ -125,7 +132,7 @@ export function ControlPanel({
               type="button"
               className={`reg-color-btn${effectiveId === ch.id ? " reg-color-btn--active" : ""}`}
               style={{ "--swatch": ch.displayColor } as React.CSSProperties}
-              onClick={() => setSelectedId(ch.id)}
+              onClick={() => selectChannel(ch.id)}
               aria-pressed={effectiveId === ch.id}
             >
               {ch.name.split(" ")[0]}

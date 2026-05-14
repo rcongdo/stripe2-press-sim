@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { CoachPanel } from "./components/CoachPanel";
 import { ControlPanel } from "./components/ControlPanel";
 import { MetricsStrip } from "./components/MetricsStrip";
+import { PressModel } from "./components/PressModel";
 import { PrintPreview } from "./components/PrintPreview";
 import { ScoreModal } from "./components/ScoreModal";
 import { JOB_REGISTRY, snackPouchJob } from "./domain/jobs";
@@ -28,6 +29,10 @@ export default function App() {
   const [settings, setSettings] = useState(() => createInitialSettings(snackPouchJob));
   const [mode, setMode] = useState<TrainingMode>("guided");
   const [score, setScore] = useState<ReturnType<typeof scoreRun> | null>(null);
+  const [activeTab, setActiveTab] = useState<"output" | "press">("output");
+  const [selectedChannelId, setSelectedChannelId] = useState<ChannelId>(
+    snackPouchJob.channels.find(ch => ch.initiallyActive)?.id ?? "C"
+  );
 
   const outcome = useMemo(() => simulatePress(selectedJob, settings), [selectedJob, settings]);
   const coaching = filterCoaching(outcome.coaching, mode);
@@ -36,6 +41,7 @@ export default function App() {
     setSelectedJob(job);
     setSettings(createInitialSettings(job));
     setScore(null);
+    setSelectedChannelId(job.channels.find(ch => ch.initiallyActive)?.id ?? "C");
   }
 
   function handleSettingChange(key: PressSettingKey, value: number) {
@@ -100,7 +106,32 @@ export default function App() {
 
       <div className="simulator-grid">
         <div className="print-workspace">
-          <PrintPreview settings={settings} outcome={outcome} job={selectedJob} />
+          <div className="workspace-tabs">
+            <button
+              type="button"
+              className={`workspace-tab${activeTab === "output" ? " workspace-tab--active" : ""}`}
+              onClick={() => setActiveTab("output")}
+            >
+              Printed Output
+            </button>
+            <button
+              type="button"
+              className={`workspace-tab${activeTab === "press" ? " workspace-tab--active" : ""}`}
+              onClick={() => setActiveTab("press")}
+            >
+              Press Model
+            </button>
+          </div>
+          {activeTab === "output" ? (
+            <PrintPreview settings={settings} outcome={outcome} job={selectedJob} />
+          ) : (
+            <PressModel
+              job={selectedJob}
+              settings={settings}
+              outcome={outcome}
+              selectedChannelId={selectedChannelId}
+            />
+          )}
           <CoachPanel messages={coaching} mode={mode} onModeChange={setMode} />
         </div>
         <ControlPanel
@@ -111,6 +142,7 @@ export default function App() {
           onRegistrationChange={handleRegistrationChange}
           onInkChannelChange={handleInkChannelChange}
           onSpotChannelToggle={handleSpotChannelToggle}
+          onChannelSelect={setSelectedChannelId}
         />
       </div>
       <ScoreModal score={score} onClose={() => setScore(null)} onReset={resetJob} />
