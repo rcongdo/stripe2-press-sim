@@ -1,46 +1,56 @@
 import { describe, expect, it } from "vitest";
-import { autoMapLayers, mapLayerNameToChannelId } from "./autoMapper";
+import { autoMapColorants, mapColorantNameToChannelId } from "./autoMapper";
 
-describe("mapLayerNameToChannelId", () => {
+describe("mapColorantNameToChannelId", () => {
   it.each([
-    ["Cyan",                "C"],
-    ["CYAN",                "C"],
-    ["c",                   "C"],
-    ["C",                   "C"],
-    ["Magenta",             "M"],
-    ["m",                   "M"],
-    ["Yellow",              "Y"],
-    ["y",                   "Y"],
-    ["Black",               "K"],
-    ["key",                 "K"],
-    ["k",                   "K"],
-    ["CMYK Black",          "K"],
-    ["Pantone 021 Orange",  "orange"],
-    ["Metallic Silver",     "silver"],
-    ["silver",              "silver"],
-    ["Opaque White",        "white"],
-    ["white",               "white"],
-    ["Spot UV",             "ignore"],
-    ["Logo",                "ignore"],
-    ["",                    "ignore"],
-  ])('maps "%s" to "%s"', (name, expected) => {
-    expect(mapLayerNameToChannelId(name)).toBe(expected);
+    ["C",        "C"],
+    ["Cyan",     "C"],
+    ["cyan",     "C"],
+    ["M",        "M"],
+    ["Magenta",  "M"],
+    ["magenta",  "M"],
+    ["Y",        "Y"],
+    ["Yellow",   "Y"],
+    ["yellow",   "Y"],
+    ["K",        "K"],
+    ["Black",    "K"],
+    ["black",    "K"],
+    ["Key",      "K"],
+    ["key",      "K"],
+    ["orange",   "orange"],
+    ["Orange",   "orange"],
+    ["silver",   "silver"],
+    ["Silver",   "silver"],
+    ["metallic", "silver"],
+    ["Metallic", "silver"],
+    ["white",    "white"],
+    ["White",    "white"],
+    ["opaque",   "white"],
+    ["Opaque white", "white"],
+  ])('maps "%s" → "%s"', (input, expected) => {
+    expect(mapColorantNameToChannelId(input)).toBe(expected);
+  });
+
+  it('returns "ignore" for unrecognised names', () => {
+    expect(mapColorantNameToChannelId("Spot UV")).toBe("ignore");
+    expect(mapColorantNameToChannelId("PANTONE 485 C")).toBe("ignore");
+    expect(mapColorantNameToChannelId("")).toBe("ignore");
   });
 });
 
-describe("autoMapLayers", () => {
-  it("maps a list of layer names to channel IDs", () => {
-    const result = autoMapLayers(["Cyan", "Magenta", "Yellow", "Black", "Spot UV"]);
+describe("autoMapColorants", () => {
+  it("maps an array of colorant names to a channel-id record", () => {
+    const result = autoMapColorants(["Cyan", "Magenta", "Yellow", "Black", "Spot UV"]);
     expect(result).toEqual({
-      Cyan: "C",
-      Magenta: "M",
-      Yellow: "Y",
-      Black: "K",
+      Cyan:     "C",
+      Magenta:  "M",
+      Yellow:   "Y",
+      Black:    "K",
       "Spot UV": "ignore",
     });
   });
 
-  it("returns empty object for empty input", () => {
-    expect(autoMapLayers([])).toEqual({});
+  it("returns an empty object for an empty array", () => {
+    expect(autoMapColorants([])).toEqual({});
   });
 });

@@ -1,6 +1,6 @@
 import type { ChannelId } from "../domain/types";
 
-export function mapLayerNameToChannelId(name: string): ChannelId | "ignore" {
+export function mapColorantNameToChannelId(name: string): ChannelId | "ignore" {
   const n = name.toLowerCase().trim();
   if (n === "c" || n.includes("cyan"))                        return "C";
   if (n === "m" || n.includes("magenta"))                     return "M";
@@ -12,10 +12,10 @@ export function mapLayerNameToChannelId(name: string): ChannelId | "ignore" {
   return "ignore";
 }
 
-export function autoMapLayers(
-  layerNames: string[],
+export function autoMapColorants(
+  colorantNames: string[],
 ): Record<string, ChannelId | "ignore"> {
   return Object.fromEntries(
-    layerNames.map(name => [name, mapLayerNameToChannelId(name)]),
+    colorantNames.map(name => [name, mapColorantNameToChannelId(name)]),
   );
 }
