@@ -257,8 +257,10 @@ export function PrintPreview({ job, settings, outcome }: PrintPreviewProps) {
         ctx.restore();
       }
 
-      for (const pouchX of POUCH_ORIGINS) {
-        drawDieCut(ctx, pouchX);
+      if (!isCustomPdfJob(job)) {
+        for (const pouchX of POUCH_ORIGINS) {
+          drawDieCut(ctx, pouchX);
+        }
       }
 
       if (outcome.defects.pinholes > 0) {

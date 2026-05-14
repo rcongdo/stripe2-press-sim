@@ -48,6 +48,19 @@ export function createPdfDrawChannel(
   };
 }
 
+// CMYK channels are colorized (C→cyan, M→magenta, Y→yellow, K→black).
+// Coverage must be read from the complementary axis, not overall brightness.
+// Spot channels are grayscale (dark = ink), so brightness inversion works.
+function sampleCoverage(pixels: Uint8ClampedArray, pi: number, chId: string): number {
+  const r = pixels[pi], g = pixels[pi + 1], b = pixels[pi + 2];
+  switch (chId) {
+    case "C": return 1 - r / 255;
+    case "M": return 1 - g / 255;
+    case "Y": return 1 - b / 255;
+    default:  return 1 - (r + g + b) / (3 * 255); // K and all spot channels
+  }
+}
+
 function drawPdfHalftone(
   ctx: CanvasRenderingContext2D,
   img: ImageBitmap,
@@ -94,8 +107,7 @@ function drawPdfHalftone(
       if (gx < 0 || gx >= gridW || gy < 0 || gy >= gridH) continue;
 
       const pi = (gy * gridW + gx) * 4;
-      const brightness = (pixels[pi] + pixels[pi + 1] + pixels[pi + 2]) / (3 * 255);
-      const coverage = (1 - brightness) * densityScale;
+      const coverage = sampleCoverage(pixels, pi, ch.id) * densityScale;
       if (coverage < 0.01) continue;
 
       const radius = PITCH * 0.48 * Math.sqrt(coverage) * (1 + gain * 1.5);
