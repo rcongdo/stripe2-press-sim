@@ -248,16 +248,6 @@ h3 {
 }
 
 /* ── PDF Upload Modal ─────────────────────────────────────────────────────── */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 200;
-}
-
 .modal-box {
   background: #fff;
   border-radius: 10px;
@@ -540,10 +530,12 @@ h3 {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: rgba(16, 27, 34, 0.55);
   padding: 24px;
+  z-index: 200;
 }
 
 .score-modal {
