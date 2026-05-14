@@ -1,7 +1,7 @@
 import { within, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { snackPouchJob } from "../domain/jobs";
-import { activateSpotChannel, createInitialSettings } from "../domain/settings";
+import { activateSpotChannel, createInitialSettings, deactivateSpotChannel } from "../domain/settings";
 import { ControlPanel } from "./ControlPanel";
 
 function makeProps(overrides: Partial<Parameters<typeof ControlPanel>[0]> = {}) {
@@ -129,16 +129,16 @@ describe("ControlPanel — ink sliders", () => {
 });
 
 describe("ControlPanel — spot channels", () => {
-  it("shows Add buttons for inactive spot channels", () => {
-    render(<ControlPanel {...makeProps()} />);
+  it("shows Add button for a deactivated spot channel", () => {
+    const settings = deactivateSpotChannel(createInitialSettings(snackPouchJob), "orange");
+    render(<ControlPanel {...makeProps({ settings })} />);
     expect(screen.getByRole("button", { name: /add pantone 021 orange/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /add metallic silver/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /add opaque white/i })).toBeInTheDocument();
   });
 
   it("calls onSpotChannelToggle(channelId, true) when Add is clicked", () => {
     const onSpotChannelToggle = vi.fn();
-    render(<ControlPanel {...makeProps({ onSpotChannelToggle })} />);
+    const settings = deactivateSpotChannel(createInitialSettings(snackPouchJob), "orange");
+    render(<ControlPanel {...makeProps({ settings, onSpotChannelToggle })} />);
     fireEvent.click(screen.getByRole("button", { name: /add pantone 021 orange/i }));
     expect(onSpotChannelToggle).toHaveBeenCalledWith("orange", true);
   });

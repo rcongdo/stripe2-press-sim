@@ -74,7 +74,7 @@ describe("updateInkChannelSetting", () => {
 
 describe("activateSpotChannel / deactivateSpotChannel", () => {
   it("activateSpotChannel adds channel to inkChannels and registration", () => {
-    const settings = createInitialSettings(snackPouchJob);
+    const settings = deactivateSpotChannel(createInitialSettings(snackPouchJob), "orange");
     expect("orange" in settings.inkChannels).toBe(false);
 
     const updated = activateSpotChannel(snackPouchJob, settings, "orange");
@@ -93,7 +93,7 @@ describe("activateSpotChannel / deactivateSpotChannel", () => {
   });
 
   it("activate does not mutate original settings", () => {
-    const settings = createInitialSettings(snackPouchJob);
+    const settings = deactivateSpotChannel(createInitialSettings(snackPouchJob), "orange");
     activateSpotChannel(snackPouchJob, settings, "orange");
     expect("orange" in settings.inkChannels).toBe(false);
   });
