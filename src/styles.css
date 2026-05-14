@@ -552,3 +552,175 @@ h3 {
   font-size: 0.9rem;
   cursor: pointer;
 }
+
+/* ── Tab bar ───────────────────────────────────────────── */
+.workspace-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid #cbd5dd;
+  background: #e8edf1;
+}
+
+.workspace-tab {
+  padding: 8px 18px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #697784;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  margin-bottom: -1px;
+  transition: color 0.1s, border-color 0.1s;
+}
+
+.workspace-tab--active {
+  color: #0f6b78;
+  border-bottom-color: #0f6b78;
+  background: #fbfcfd;
+}
+
+.workspace-tab:not(.workspace-tab--active):hover {
+  color: #1a2530;
+}
+
+/* ── Press model container ─────────────────────────────── */
+.press-model {
+  background: #fbfcfd;
+  border: 1px solid #cbd5dd;
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.press-model__toolbar {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* ── Mode toggle buttons ───────────────────────────────── */
+.press-mode-btn {
+  padding: 5px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid #cbd5dd;
+  background: #eef3f6;
+  color: #697784;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.press-mode-btn--active {
+  background: #0f6b78;
+  color: #fff;
+  border-color: #0f6b78;
+}
+
+/* ── SVG press overview ────────────────────────────────── */
+.press-overview svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.press-station {
+  cursor: pointer;
+}
+
+.press-station:hover .station-ring {
+  stroke-width: 3;
+}
+
+/* ── Learn mode tooltip ────────────────────────────────── */
+.learn-tooltip {
+  position: absolute;
+  background: #1a2530;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  max-width: 260px;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+
+.learn-tooltip__name {
+  font-weight: 700;
+  font-size: 0.84rem;
+  margin-bottom: 4px;
+}
+
+/* ── Station detail canvas wrapper ─────────────────────── */
+.station-detail {
+  position: relative;
+}
+
+.station-detail canvas {
+  display: block;
+  width: 100%;
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+.press-back-btn {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #697784;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0 0 8px 0;
+  display: block;
+}
+
+.press-back-btn:hover {
+  color: #1a2530;
+}
+
+/* ── Callout labels (absolutely positioned over canvas) ── */
+.station-callout {
+  position: absolute;
+  background: #1a2530;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 4px;
+  pointer-events: none;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.station-callout::after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 3px solid transparent;
+  border-top-color: #1a2530;
+}
+
+/* Learn mode callout variant */
+.station-callout--learn {
+  background: #0f6b78;
+  max-width: 180px;
+  white-space: normal;
+  font-weight: 400;
+  font-size: 0.7rem;
+}
+
+.station-callout--learn .callout-name {
+  display: block;
+  font-weight: 700;
+  font-size: 0.75rem;
+  margin-bottom: 2px;
+}
+
+.station-callout--learn::after {
+  border-top-color: #0f6b78;
+}
