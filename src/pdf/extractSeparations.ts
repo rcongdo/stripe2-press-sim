@@ -22,7 +22,7 @@ export async function extractSeparations(file: File): Promise<ExtractedLayers> {
       )
     : [];
 
-  const colorantNames = [...separationNames, ...cmykNames];
+  const colorantNames = [...cmykNames, ...separationNames];
   if (colorantNames.length === 0) {
     throw new Error(
       "No color separations found. This PDF must declare inks as Separation color spaces.",
@@ -207,14 +207,19 @@ async function renderCmykChannels(
     const rgbaData = (composite.getContext("2d") as unknown as OffscreenCanvasRenderingContext2D)
       .getImageData(0, 0, w, h).data;
 
-    const channelIndex: Record<string, number> = {
-      Cyan: 0, Magenta: 1, Yellow: 2, Black: 3,
+    type ChannelDef = { idx: number; cr: number; cg: number; cb: number };
+    const channelDefs: Record<string, ChannelDef> = {
+      Cyan:    { idx: 0, cr:   0, cg: 255, cb: 255 },
+      Magenta: { idx: 1, cr: 255, cg:   0, cb: 255 },
+      Yellow:  { idx: 2, cr: 255, cg: 255, cb:   0 },
+      Black:   { idx: 3, cr:   0, cg:   0, cb:   0 },
     };
 
     const result: Record<string, ImageBitmap> = {};
     for (const name of names) {
-      const idx = channelIndex[name];
-      if (idx === undefined) continue;
+      const def = channelDefs[name];
+      if (!def) continue;
+      const { idx, cr, cg, cb } = def;
 
       const channelCanvas = new OffscreenCanvas(w, h);
       const channelCtx = channelCanvas.getContext("2d") as unknown as OffscreenCanvasRenderingContext2D;
@@ -235,10 +240,10 @@ async function renderCmykChannels(
           else if (idx === 2) ink = (1 - b - k) / d;
           else                ink = k;
         }
-        const gray = Math.round((1 - ink) * 255);
-        channelData.data[i]     = gray;
-        channelData.data[i + 1] = gray;
-        channelData.data[i + 2] = gray;
+        // White background tinted by channel color at ink density
+        channelData.data[i]     = Math.round(255 * (1 - ink) + cr * ink);
+        channelData.data[i + 1] = Math.round(255 * (1 - ink) + cg * ink);
+        channelData.data[i + 2] = Math.round(255 * (1 - ink) + cb * ink);
         channelData.data[i + 3] = 255;
       }
 
