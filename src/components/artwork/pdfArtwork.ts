@@ -70,31 +70,47 @@ function drawPdfHalftone(
   gain: number,
   densityScale: number,
 ): void {
-  // Down-sample to one pixel per halftone cell for coverage lookup.
-  // Iterating in image space (no rotation) means each sample index maps
-  // directly to the canvas cell it covers — no inverse-rotation needed.
-  const gridW = Math.ceil(W_CANVAS / PITCH);
-  const gridH = Math.ceil(H_CANVAS / PITCH);
+  // Down-sample to one pixel per halftone cell for fast coverage lookup.
+  const gridW = Math.ceil(W_CANVAS / PITCH) + 2;
+  const gridH = Math.ceil(H_CANVAS / PITCH) + 2;
   const sampleCanvas = new OffscreenCanvas(gridW, gridH);
   const sampleCtx = sampleCanvas.getContext("2d") as unknown as OffscreenCanvasRenderingContext2D;
   sampleCtx.drawImage(img, 0, 0, gridW, gridH);
   const pixels = sampleCtx.getImageData(0, 0, gridW, gridH).data;
 
   const angle = (ch.screenAngle * Math.PI) / 180;
-  const cosA  = Math.cos(angle);
-  const sinA  = Math.sin(angle);
+  // Use cos/sin of +angle (not -angle). After ctx.rotate(angle), a dot drawn
+  // at (dx, dy) lands at canvas position (cosA·dx − sinA·dy, sinA·dx + cosA·dy)
+  // relative to the translated origin. Inverse-mapping back to image space uses
+  // the same formula — no sign flip needed.
+  const cosA = Math.cos(angle);
+  const sinA = Math.sin(angle);
 
-  // Rotation is applied around the canvas centre.
-  const cx = W_CANVAS / 2;
-  const cy = H_CANVAS / 2;
+  // Translate to the image centre so the rotated grid stays centred on the art.
+  const cxCanvas = regX + W_CANVAS / 2;
+  const cyCanvas = regY + H_CANVAS / 2;
 
   ctx.save();
   ctx.beginPath();
   ctx.rect(0, 0, W_CANVAS, H_CANVAS);
   ctx.clip();
+  ctx.translate(cxCanvas, cyCanvas);
+  ctx.rotate(angle);
 
-  for (let gx = 0; gx < gridW; gx++) {
-    for (let gy = 0; gy < gridH; gy++) {
+  const span = Math.ceil(Math.hypot(W_CANVAS, H_CANVAS) / 2) + PITCH;
+
+  for (let dx = -span; dx <= span; dx += PITCH) {
+    for (let dy = -span; dy <= span; dy += PITCH) {
+      // Where this rotated-grid cell sits in unrotated canvas space (relative to centre).
+      // Standard rotation: R(angle) · [dx, dy]
+      const unrotX = cosA * dx - sinA * dy;
+      const unrotY = sinA * dx + cosA * dy;
+
+      // Convert to sample-grid index (image is drawn at (regX,regY) with size W×H).
+      const gx = Math.round((unrotX + W_CANVAS / 2) / PITCH);
+      const gy = Math.round((unrotY + H_CANVAS / 2) / PITCH);
+      if (gx < 0 || gx >= gridW || gy < 0 || gy >= gridH) continue;
+
       const pi = (gy * gridW + gx) * 4;
       const coverage = sampleCoverage(pixels, pi, ch.id) * densityScale;
       if (coverage < 0.01) continue;
@@ -102,18 +118,8 @@ function drawPdfHalftone(
       const radius = PITCH * 0.48 * Math.sqrt(coverage) * (1 + gain * 1.5);
       if (radius < 0.5) continue;
 
-      // Canvas centre of this unrotated cell
-      const imgX = (gx + 0.5) * PITCH;
-      const imgY = (gy + 0.5) * PITCH;
-
-      // Rotate the cell position around the canvas centre, then shift by registration
-      const dx = imgX - cx;
-      const dy = imgY - cy;
-      const dotX = cosA * dx - sinA * dy + cx + regX;
-      const dotY = sinA * dx + cosA * dy + cy + regY;
-
       ctx.beginPath();
-      ctx.arc(dotX, dotY, Math.max(0.5, radius), 0, Math.PI * 2);
+      ctx.arc(dx, dy, Math.max(0.5, radius), 0, Math.PI * 2);
       ctx.fill();
     }
   }
