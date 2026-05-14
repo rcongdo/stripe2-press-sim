@@ -733,6 +733,13 @@ h3 {
   margin: 0 auto;
 }
 
+.station-detail__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
 .press-back-btn {
   font-size: 0.8rem;
   font-weight: 600;
@@ -740,12 +747,57 @@ h3 {
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 0 0 8px 0;
-  display: block;
+  padding: 0;
+  white-space: nowrap;
 }
 
 .press-back-btn:hover {
   color: #1a2530;
+}
+
+.station-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  justify-content: center;
+}
+
+.station-nav__btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #cbd5dd;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: #1a2530;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.station-nav__btn:hover {
+  background: #e8edf1;
+}
+
+.station-nav__label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1a2530;
+  white-space: nowrap;
+}
+
+.station-nav__channel {
+  font-weight: 400;
+  color: #697784;
+}
+
+.station-nav__count {
+  font-size: 0.75rem;
+  color: #697784;
+  white-space: nowrap;
 }
 
 /* ── Callout labels (absolutely positioned over canvas) ── */

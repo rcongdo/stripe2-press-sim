@@ -11,6 +11,11 @@ type Props = {
   mode: PressMode;
   channelId: string;
   stationAngle: number;
+  stationNumber: number;
+  stationCount: number;
+  channelName: string;
+  onPrevStation: () => void;
+  onNextStation: () => void;
   onBack: () => void;
 };
 
@@ -220,7 +225,7 @@ const LEARN_LABELS: { key: string; educationKey: string; x: number; y: number }[
   { key: "ciDrum",           educationKey: "ciDrum",           x: 20,  y: 370 },
 ];
 
-export function StationDetail({ job, settings, outcome, mode, channelId, stationAngle, onBack }: Props) {
+export function StationDetail({ job, settings, outcome, mode, channelId, stationAngle, stationNumber, stationCount, channelName, onPrevStation, onNextStation, onBack }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef(0);
   const aniloxAngleRef = useRef(0);
@@ -260,9 +265,19 @@ export function StationDetail({ job, settings, outcome, mode, channelId, station
 
   return (
     <div className="station-detail" data-testid="station-detail" style={{ position: "relative" }}>
-      <button type="button" className="press-back-btn" onClick={onBack}>
-        ← Back to press
-      </button>
+      <div className="station-detail__header">
+        <button type="button" className="press-back-btn" onClick={onBack}>
+          ← Back to press
+        </button>
+        <div className="station-nav">
+          <button type="button" className="station-nav__btn" aria-label="Previous station" onClick={onPrevStation}>‹</button>
+          <span className="station-nav__label">
+            Station {stationNumber} <span className="station-nav__channel">({channelName})</span>
+          </span>
+          <button type="button" className="station-nav__btn" aria-label="Next station" onClick={onNextStation}>›</button>
+        </div>
+        <span className="station-nav__count">{stationNumber} / {stationCount}</span>
+      </div>
       <div style={{ position: "relative", maxWidth: SD_W }}>
         <canvas
           ref={canvasRef}

@@ -4,18 +4,31 @@ import { PressOverview } from "./press/PressOverview";
 import { StationDetail } from "./press/StationDetail";
 
 export type PressMode = "operate" | "learn";
-type PressView = { type: "overview" } | { type: "station"; channelId: ChannelId; stationAngle: number };
+type PressView = { type: "overview" } | { type: "station"; slotIndex: number };
+
+// Matches STATION_ANGLES in PressOverview — clockwise from top-right
+const STATION_ANGLES = [315, 345, 15, 45, 75, 105, 135, 165, 195, 225] as const;
 
 type PressModelProps = {
   job: JobPreset;
   settings: PressSettings;
   outcome: SimulationOutcome;
   selectedChannelId: ChannelId;
+  onStationSelect?: (id: ChannelId) => void;
 };
 
-export function PressModel({ job, settings, outcome, selectedChannelId }: PressModelProps) {
+export function PressModel({ job, settings, outcome, selectedChannelId, onStationSelect }: PressModelProps) {
   const [mode, setMode] = useState<PressMode>("operate");
   const [view, setView] = useState<PressView>({ type: "overview" });
+
+  const activeChannels = job.channels.filter(ch => ch.id in settings.inkChannels);
+
+  function goToSlot(slotIndex: number) {
+    const ch = activeChannels[slotIndex];
+    if (!ch) return;
+    setView({ type: "station", slotIndex });
+    onStationSelect?.(ch.id);
+  }
 
   return (
     <div className="press-model">
@@ -45,7 +58,10 @@ export function PressModel({ job, settings, outcome, selectedChannelId }: PressM
           outcome={outcome}
           mode={mode}
           selectedChannelId={selectedChannelId}
-          onStationClick={(id, angle) => setView({ type: "station", channelId: id, stationAngle: angle })}
+          onStationClick={(id) => {
+            const slot = activeChannels.findIndex(ch => ch.id === id);
+            if (slot >= 0) goToSlot(slot);
+          }}
         />
       ) : (
         <StationDetail
@@ -53,8 +69,13 @@ export function PressModel({ job, settings, outcome, selectedChannelId }: PressM
           settings={settings}
           outcome={outcome}
           mode={mode}
-          channelId={view.channelId}
-          stationAngle={view.stationAngle}
+          channelId={activeChannels[view.slotIndex]?.id ?? activeChannels[0]?.id ?? "C"}
+          stationAngle={STATION_ANGLES[view.slotIndex] ?? 0}
+          stationNumber={view.slotIndex + 1}
+          stationCount={activeChannels.length}
+          channelName={activeChannels[view.slotIndex]?.name ?? ""}
+          onPrevStation={() => goToSlot((view.slotIndex - 1 + activeChannels.length) % activeChannels.length)}
+          onNextStation={() => goToSlot((view.slotIndex + 1) % activeChannels.length)}
           onBack={() => setView({ type: "overview" })}
         />
       )}

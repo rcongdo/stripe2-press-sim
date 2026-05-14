@@ -136,6 +136,7 @@ export default function App() {
               settings={settings}
               outcome={outcome}
               selectedChannelId={selectedChannelId}
+              onStationSelect={setSelectedChannelId}
             />
           )}
           <CoachPanel messages={coaching} mode={mode} onModeChange={setMode} />
