@@ -18,7 +18,7 @@ export async function extractSeparations(file: File): Promise<ExtractedLayers> {
 
   if (colorantNames.length === 0) {
     throw new Error(
-      "No color separations found. This PDF must use Separation or DeviceN color spaces.",
+      "No color separations found. This PDF must declare inks as Separation color spaces.",
     );
   }
 
