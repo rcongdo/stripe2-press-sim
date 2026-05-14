@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChannelDef, ChannelId, JobPreset, PressSettings, SimulationOutcome } from "../domain/types";
 import { drawSnackPouchChannel } from "./artwork/snackPouch";
 import { drawLabelPrintChannel } from "./artwork/labelPrint";
+import type { CustomPdfJob } from "../domain/types";
+import { createPdfDrawChannel } from "./artwork/pdfArtwork";
 
 type DrawChannelFn = (
   ctx: CanvasRenderingContext2D,
@@ -14,6 +16,10 @@ const ARTWORK_RENDERERS: Record<string, DrawChannelFn> = {
   "snack-pouch-cmyk": drawSnackPouchChannel,
   "label-print":      drawLabelPrintChannel,
 };
+
+function isCustomPdfJob(job: JobPreset): job is CustomPdfJob {
+  return "customPdf" in job;
+}
 
 type PrintPreviewProps = {
   job: JobPreset;
@@ -172,7 +178,9 @@ export function PrintPreview({ job, settings, outcome }: PrintPreviewProps) {
       const offscreen = offscreenRef.current;
       const offCtx = offscreen.getContext("2d")!;
 
-      const drawChannel = ARTWORK_RENDERERS[job.id] ?? drawLabelPrintChannel;
+      const drawChannel = isCustomPdfJob(job)
+        ? createPdfDrawChannel(job.customPdf.layerImages)
+        : (ARTWORK_RENDERERS[job.id] ?? drawLabelPrintChannel);
 
       // Sort: white backing first, then process channels Y→M→C→K, then other spots
       const activeChannels = job.channels.filter(ch => ch.id in settings.inkChannels);
