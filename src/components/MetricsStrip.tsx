@@ -83,33 +83,6 @@ export function MetricsStrip({ job, settings, outcome, mode, onSettingChange }: 
 
   return (
     <section className="metrics-strip" aria-label="Live press metrics">
-      <div className="metrics-job">
-        <div>
-          <p className="panel-label">Job</p>
-          <h2>{job.name}</h2>
-          <p>{job.description}</p>
-        </div>
-        <div className="control-group metrics-press-settings">
-          <h3>Press settings</h3>
-          {PRESS_SETTING_KEYS.map(key => {
-            const range = job.ranges[key];
-            const inputId = `press-setting-${key}`;
-            return (
-              <div className="control" key={key}>
-                <span>
-                  <span className="control-label-row">
-                    <label htmlFor={inputId}>{range.label}</label>
-                    {guided && PRESS_TIPS[key] && <InfoTip text={PRESS_TIPS[key]!} />}
-                  </span>
-                  <strong>{settings[key]} {range.unit}</strong>
-                </span>
-                <input id={inputId} type="range" min={range.min} max={range.max} step={range.step}
-                  value={settings[key]} onChange={e => onSettingChange(key, Number(e.target.value))} />
-              </div>
-            );
-          })}
-        </div>
-      </div>
       <div className="metrics-2x2">
         <div className="metric metric--boxed">
           <span>Setup quality</span>
@@ -141,6 +114,30 @@ export function MetricsStrip({ job, settings, outcome, mode, onSettingChange }: 
           <ChannelTable channels={second} outcome={outcome} />
         </div>
       )}
+
+      <div className="metrics-job">
+        <p className="metrics-job__header">
+          <span className="panel-label">Job</span>
+          <strong>{job.name}</strong>
+        </p>
+        <div className="metrics-press-settings">
+          {PRESS_SETTING_KEYS.map(key => {
+            const range = job.ranges[key];
+            const inputId = `press-setting-${key}`;
+            return (
+              <div className="metrics-slider" key={key}>
+                <span className="metrics-slider__label">
+                  <label htmlFor={inputId}>{range.label}</label>
+                  {guided && PRESS_TIPS[key] && <InfoTip text={PRESS_TIPS[key]!} />}
+                </span>
+                <strong className="metrics-slider__value">{settings[key]} {range.unit}</strong>
+                <input id={inputId} type="range" min={range.min} max={range.max} step={range.step}
+                  value={settings[key]} onChange={e => onSettingChange(key, Number(e.target.value))} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </section>
   );
 }
