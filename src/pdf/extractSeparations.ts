@@ -52,12 +52,12 @@ async function parseColorantNames(buffer: ArrayBuffer): Promise<string[]> {
     if (!csArray) continue;
 
     const csType = csArray.lookupMaybe(0, PDFName);
-    if (csType?.asString() !== "Separation") continue;
+    if (csType?.asString() !== "/Separation") continue;
 
     const inkNamePdf = csArray.lookupMaybe(1, PDFName);
     if (!inkNamePdf) continue;
 
-    const name = decodeColorantName(inkNamePdf.asString());
+    const name = decodeColorantName(inkNamePdf.asString().slice(1));
     if (!seen.has(name)) {
       seen.add(name);
       names.push(name);
@@ -102,12 +102,12 @@ async function rewriteTintFunctions(
     if (!csArray) continue;
 
     const csType = csArray.lookupMaybe(0, PDFName);
-    if (csType?.asString() !== "Separation") continue;
+    if (csType?.asString() !== "/Separation") continue;
 
     const inkNamePdf = csArray.lookupMaybe(1, PDFName);
     if (!inkNamePdf) continue;
 
-    const name = decodeColorantName(inkNamePdf.asString());
+    const name = decodeColorantName(inkNamePdf.asString().slice(1));
 
     const newCs = pdfDoc.context.obj([
       PDFName.of("Separation"),
