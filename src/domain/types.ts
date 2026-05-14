@@ -126,3 +126,12 @@ export type ScoreSummary = {
   totalScore: number;
   grade: "Needs work" | "Getting close" | "Press ready";
 };
+
+export type LayerImages = Record<string, ImageBitmap>;
+
+export type CustomPdfJob = JobPreset & {
+  customPdf: {
+    filename: string;
+    layerImages: LayerImages;
+  };
+};
