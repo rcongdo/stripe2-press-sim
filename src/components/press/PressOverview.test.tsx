@@ -44,7 +44,7 @@ describe("PressOverview", () => {
     const onStationClick = vi.fn();
     render(<PressOverview {...makeProps({ onStationClick })} />);
     fireEvent.click(screen.getByTestId("station-M"));
-    expect(onStationClick).toHaveBeenCalledWith("M");
+    expect(onStationClick).toHaveBeenCalledWith("M", expect.any(Number));
   });
 
   it("highlights the selected station", () => {

@@ -1,4 +1,3 @@
-// src/components/press/PressOverview.tsx
 import { useState } from "react";
 import type { ChannelId, JobPreset, PressSettings, SimulationOutcome } from "../../domain/types";
 import type { PressMode } from "../PressModel";
@@ -10,106 +9,74 @@ type Props = {
   outcome: SimulationOutcome;
   mode: PressMode;
   selectedChannelId: ChannelId;
-  onStationClick: (id: ChannelId) => void;
+  onStationClick: (id: ChannelId, stationAngle: number) => void;
 };
 
-const SVG_W = 800;
-const SVG_H = 450;
-const DRUM_CX = 400;
-const DRUM_CY = 170;
-const DRUM_R = 140;
+const SVG_W = 560;
+const SVG_H = 560;
+const DRUM_CX = 280;
+const DRUM_CY = 290;
+const DRUM_R = 150;
 const PLATE_R = 22;
 const ANILOX_R = 16;
-// Distance from drum center to plate cylinder center
-const STATION_DIST = DRUM_R + PLATE_R + 6;
-// Distance from drum center to anilox center
-const ANILOX_DIST = STATION_DIST + PLATE_R + ANILOX_R + 4;
 
-const UNWIND_X = 75;
-const UNWIND_Y = 375;
-const REWIND_X = 725;
-const REWIND_Y = 375;
+// Circles are tangent: plate touches drum, anilox touches plate
+const PLATE_DIST = DRUM_R + PLATE_R;                    // 172
+const ANILOX_DIST = PLATE_DIST + PLATE_R + ANILOX_R;   // 210
 
-// Dryer: fixed position near rewind side
-const DRYER_X = 650;
-const DRYER_Y = 290;
-const DRYER_W = 46;
-const DRYER_H = 28;
+// 10 fixed station slots. Gap at top (225°→315° through 270°).
+// Right 5 (clockwise from top-right): 315, 345, 15, 45, 75
+// Left 5 (continuing clockwise from bottom-left): 105, 135, 165, 195, 225
+const STATION_ANGLES = [315, 345, 15, 45, 75, 105, 135, 165, 195, 225] as const;
 
 function toRad(deg: number) { return (deg * Math.PI) / 180; }
 
-// Station arc: 135° (entry/left) to 45° (exit/right), stations go left→right
-function stationAngleDeg(index: number, total: number): number {
-  if (total === 1) return 90;
-  return 135 - (index / (total - 1)) * 90;
-}
-
-function stationPos(deg: number, dist: number) {
+function drumPoint(deg: number) {
   return {
-    x: DRUM_CX + dist * Math.cos(toRad(deg)),
-    y: DRUM_CY + dist * Math.sin(toRad(deg)),
+    x: DRUM_CX + DRUM_R * Math.cos(toRad(deg)),
+    y: DRUM_CY + DRUM_R * Math.sin(toRad(deg)),
   };
 }
 
-function stationHealthColor(density: number, target: number): string {
+function healthColor(density: number, target: number): string {
+  if (target === 0) return "#22a559";
   const ratio = Math.abs(density - target) / target;
-  if (ratio <= 0.1) return "#22a559";
+  if (ratio <= 0.10) return "#22a559";
   if (ratio <= 0.25) return "#e08c00";
   return "#d63b3b";
 }
 
-// Web tension: low=0, high=1; affects sag on approach/exit paths
-function tensionNorm(webTension: number, min: number, max: number): number {
+function tensionNorm(t: number, min: number, max: number): number {
   if (max === min) return 0.5;
-  return (webTension - min) / (max - min);
+  return (t - min) / (max - min);
 }
 
-// Registration arrow: returns (dx, dy) from station center scaled for display
-function regArrow(reg: { x: number; y: number } | undefined): { dx: number; dy: number; show: boolean } {
-  if (!reg) return { dx: 0, dy: 0, show: false };
-  const show = Math.abs(reg.x) > 0.5 || Math.abs(reg.y) > 0.5;
-  return { dx: reg.x * 3, dy: reg.y * 3, show };
-}
-
-// Dryer color based on drying risk %
-function dryerColor(dryingRisk: number): string {
-  if (dryingRisk < 40) return "#7ec8d3";
-  if (dryingRisk < 70) return "#e08c00";
-  return "#d63b3b";
-}
-
-type TooltipState = { key: string; x: number; y: number } | null;
+type TooltipState = { key: string } | null;
 
 export function PressOverview({ job, settings, outcome, mode, selectedChannelId, onStationClick }: Props) {
   const [tooltip, setTooltip] = useState<TooltipState>(null);
   const activeChannels = job.channels.filter(ch => ch.id in settings.inkChannels);
-  const tn = tensionNorm(
-    settings.webTension,
-    job.ranges.webTension.min,
-    job.ranges.webTension.max,
-  );
 
-  // Entry/exit points on drum circumference
-  const entryX = DRUM_CX + DRUM_R * Math.cos(toRad(135));
-  const entryY = DRUM_CY + DRUM_R * Math.sin(toRad(135));
-  const exitX  = DRUM_CX + DRUM_R * Math.cos(toRad(45));
-  const exitY  = DRUM_CY + DRUM_R * Math.sin(toRad(45));
+  const tn = tensionNorm(settings.webTension, job.ranges.webTension.min, job.ranges.webTension.max);
+  const sag = (1 - tn) * 12;
 
-  // Sag control: high tension = no sag, low tension = 30px sag
-  const sag = (1 - tn) * 30;
-  const leftMidX = (UNWIND_X + entryX) / 2;
-  const leftMidY = (UNWIND_Y + entryY) / 2 + sag;
-  const rightMidX = (exitX + REWIND_X) / 2;
-  const rightMidY = (exitY + REWIND_Y) / 2 + sag;
+  // Web arc entry/exit on drum circumference
+  const entry = drumPoint(315);
+  const exit  = drumPoint(225);
 
-  function handleLabelClick(key: string, x: number, y: number) {
+  // Unwind/rewind positioned above the drum gap
+  const UNWIND_X = DRUM_CX + 175;
+  const UNWIND_Y = DRUM_CY - DRUM_R - 85;
+  const REWIND_X = DRUM_CX - 175;
+  const REWIND_Y = DRUM_CY - DRUM_R - 85;
+
+  function handleLabel(key: string) {
     if (mode !== "learn") return;
-    setTooltip(prev => prev?.key === key ? null : { key, x, y });
+    setTooltip(prev => prev?.key === key ? null : { key });
   }
 
   return (
     <div className="press-overview" data-testid="press-overview" style={{ position: "relative" }}>
-      {/* Learn mode tooltip */}
       {tooltip && PRESS_EDUCATION[tooltip.key] && (
         <div
           className="learn-tooltip"
@@ -121,121 +88,111 @@ export function PressOverview({ job, settings, outcome, mode, selectedChannelId,
         </div>
       )}
       <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} xmlns="http://www.w3.org/2000/svg">
-        {/* Web: approach from unwind */}
+        {/* Web arc on drum surface: clockwise from 315° to 225°, large arc (270°) */}
         <path
-          d={`M ${UNWIND_X} ${UNWIND_Y} Q ${leftMidX} ${leftMidY} ${entryX} ${entryY}`}
-          fill="none" stroke="#b0bec5" strokeWidth="6"
+          d={`M ${entry.x.toFixed(1)} ${entry.y.toFixed(1)} A ${DRUM_R} ${DRUM_R} 0 1 1 ${exit.x.toFixed(1)} ${exit.y.toFixed(1)}`}
+          fill="none" stroke="#b0bec5" strokeWidth="5"
         />
-        {/* Web: arc around drum (counterclockwise from 135° to 45° through 90°) */}
-        <path
-          d={`M ${entryX} ${entryY} A ${DRUM_R} ${DRUM_R} 0 0 0 ${exitX} ${exitY}`}
-          fill="none" stroke="#b0bec5" strokeWidth="6"
-        />
-        {/* Web: exit to rewind */}
-        <path
-          d={`M ${exitX} ${exitY} Q ${rightMidX} ${rightMidY} ${REWIND_X} ${REWIND_Y}`}
-          fill="none" stroke="#b0bec5" strokeWidth="6"
-        />
+
+        {/* Web lines to unwind/rewind (dashed, above the drum) */}
+        <line x1={entry.x} y1={entry.y} x2={UNWIND_X} y2={UNWIND_Y + sag}
+          stroke="#b0bec5" strokeWidth="2.5" strokeDasharray="5,3" />
+        <line x1={exit.x} y1={exit.y} x2={REWIND_X} y2={REWIND_Y + sag}
+          stroke="#b0bec5" strokeWidth="2.5" strokeDasharray="5,3" />
+        <text x={UNWIND_X + 5} y={UNWIND_Y - 4} textAnchor="start" fontSize="9" fill="#697784">Unwind</text>
+        <text x={REWIND_X - 5} y={REWIND_Y - 4} textAnchor="end" fontSize="9" fill="#697784">Rewind</text>
 
         {/* CI Drum */}
         <circle cx={DRUM_CX} cy={DRUM_CY} r={DRUM_R} fill="#e8edf1" stroke="#697784" strokeWidth="2" />
-        <text x={DRUM_CX} y={DRUM_CY + 6} textAnchor="middle" fontSize="11" fill="#697784" fontWeight="600">
+        <text x={DRUM_CX} y={DRUM_CY + 5} textAnchor="middle" fontSize="12" fill="#697784" fontWeight="600">
           CI Drum
         </text>
         {mode === "learn" && (
           <text
-            x={DRUM_CX} y={DRUM_CY - DRUM_R - 10}
-            textAnchor="middle" fontSize="11" fill="#0f6b78" fontWeight="700"
+            x={DRUM_CX} y={DRUM_CY - 18}
+            textAnchor="middle" fontSize="10" fill="#0f6b78" fontWeight="700"
             style={{ cursor: "pointer" }}
-            onClick={e => handleLabelClick("ciDrum", DRUM_CX, DRUM_CY - DRUM_R - 30)}
+            onClick={() => handleLabel("ciDrum")}
           >
             Central Impression Drum
           </text>
         )}
 
-        {/* Unwind stand */}
-        <rect x={UNWIND_X - 14} y={UNWIND_Y - 24} width="28" height="28" rx="4"
-          fill="#dde4ea" stroke="#697784" strokeWidth="1.5" />
-        <circle cx={UNWIND_X} cy={UNWIND_Y - 10} r="10" fill="#b0bec5" stroke="#697784" strokeWidth="1" />
-        <text x={UNWIND_X} y={UNWIND_Y + 18} textAnchor="middle" fontSize="10" fill="#697784">
-          Unwind
-        </text>
-
-        {/* Rewind stand */}
-        <rect x={REWIND_X - 14} y={REWIND_Y - 24} width="28" height="28" rx="4"
-          fill="#dde4ea" stroke="#697784" strokeWidth="1.5" />
-        <circle cx={REWIND_X} cy={REWIND_Y - 10} r="10" fill="#b0bec5" stroke="#697784" strokeWidth="1" />
-        <text x={REWIND_X} y={REWIND_Y + 18} textAnchor="middle" fontSize="10" fill="#697784">
-          Rewind
-        </text>
-
-        {/* Dryer unit */}
-        <rect
-          x={DRYER_X - DRYER_W / 2} y={DRYER_Y - DRYER_H / 2}
-          width={DRYER_W} height={DRYER_H} rx="4"
-          fill={dryerColor(outcome.dryingRisk)} stroke="#697784" strokeWidth="1.5"
-        />
-        <text x={DRYER_X} y={DRYER_Y + 4} textAnchor="middle" fontSize="9" fill="#fff" fontWeight="600">
-          DRYER
-        </text>
-        <text x={DRYER_X} y={DRYER_Y + DRYER_H / 2 + 14} textAnchor="middle" fontSize="9" fill="#697784">
-          {outcome.dryingRisk}%
-        </text>
-
-        {/* Print stations */}
-        {activeChannels.map((ch, i) => {
-          const deg = stationAngleDeg(i, activeChannels.length);
-          const plate = stationPos(deg, STATION_DIST);
-          const anilox = stationPos(deg, ANILOX_DIST);
-          const density = outcome.channelDensity[ch.id] ?? 0;
-          const healthColor = stationHealthColor(density, ch.targetDensity);
-          const reg = regArrow(settings.registration[ch.id]);
-          const isSelected = ch.id === selectedChannelId;
+        {/* 10 station slots — all rendered; active channels in color, unused in gray */}
+        {(STATION_ANGLES as readonly number[]).map((deg, slotIndex) => {
+          const ch = activeChannels[slotIndex];
+          const active = ch !== undefined;
+          const selected = active && ch.id === selectedChannelId;
+          const density = active ? (outcome.channelDensity[ch.id] ?? 0) : 0;
+          const hColor = active ? healthColor(density, ch.targetDensity) : "#ccc";
+          const plateFill = active ? ch.displayColor + "44" : "#f0f0f2";
+          const plateStroke = active ? ch.displayColor : "#bbb";
+          const label = active
+            ? (ch.id.length === 1 ? ch.id : ch.id.slice(0, 2).toUpperCase())
+            : "";
 
           return (
             <g
-              key={ch.id}
-              className="press-station"
-              data-testid={`station-${ch.id}`}
-              data-selected={isSelected}
-              onClick={() => onStationClick(ch.id)}
-              role="button"
-              aria-label={ch.name}
+              key={slotIndex}
+              transform={`rotate(${deg}, ${DRUM_CX}, ${DRUM_CY})`}
+              className={active ? "press-station" : undefined}
+              data-testid={active ? `station-${ch.id}` : `station-slot-${slotIndex}`}
+              data-selected={active ? selected : undefined}
+              onClick={active ? () => onStationClick(ch.id, deg) : undefined}
+              role={active ? "button" : undefined}
+              aria-label={active ? ch.name : `Unused station ${slotIndex + 1}`}
             >
-              {/* Health ring */}
-              <circle
-                className="station-ring"
-                cx={plate.x} cy={plate.y} r={PLATE_R + 6}
-                fill="none"
-                stroke={isSelected ? "#0f6b78" : healthColor}
-                strokeWidth={isSelected ? 2.5 : 1.5}
-              />
-              {/* Plate cylinder */}
-              <circle cx={plate.x} cy={plate.y} r={PLATE_R}
-                fill={ch.displayColor + "44"} stroke={ch.displayColor} strokeWidth="1.5" />
-              {/* Anilox roll */}
-              <circle cx={anilox.x} cy={anilox.y} r={ANILOX_R}
-                fill="#dde4ea" stroke="#697784" strokeWidth="1" />
-              {/* Channel label */}
-              <text x={plate.x} y={plate.y + 4} textAnchor="middle" fontSize="10"
-                fill={ch.displayColor} fontWeight="800">
-                {ch.id.length === 1 ? ch.id : ch.id.slice(0, 2).toUpperCase()}
-              </text>
-              {/* Registration arrow */}
-              {reg.show && (
-                <line
-                  x1={plate.x} y1={plate.y}
-                  x2={plate.x + reg.dx} y2={plate.y + reg.dy}
-                  stroke="#d63b3b" strokeWidth="2"
-                  markerEnd="url(#arrowhead)"
+              {/* Health / selection ring (active only) */}
+              {active && (
+                <circle
+                  className="station-ring"
+                  cx={DRUM_CX + PLATE_DIST} cy={DRUM_CY}
+                  r={PLATE_R + 5}
+                  fill="none"
+                  stroke={selected ? "#0f6b78" : hColor}
+                  strokeWidth={selected ? 2.5 : 1.5}
                 />
               )}
-              {/* Learn mode label */}
-              {mode === "learn" && (
+              {/* Plate cylinder — tangent to drum */}
+              <circle
+                cx={DRUM_CX + PLATE_DIST} cy={DRUM_CY}
+                r={PLATE_R}
+                fill={plateFill}
+                stroke={plateStroke}
+                strokeWidth="1.5"
+              />
+              {/* Anilox roll — tangent to plate */}
+              <circle
+                cx={DRUM_CX + ANILOX_DIST} cy={DRUM_CY}
+                r={ANILOX_R}
+                fill={active ? "#dde4ea" : "#f0f0f2"}
+                stroke={active ? "#697784" : "#bbb"}
+                strokeWidth="1"
+              />
+              {/* Ink chamber (small rect, outer side of anilox) */}
+              <rect
+                x={DRUM_CX + ANILOX_DIST + ANILOX_R + 3} y={DRUM_CY - 9}
+                width={20} height={18} rx="2"
+                fill={active ? ch.displayColor + "22" : "#f0f0f2"}
+                stroke={active ? "#697784" : "#bbb"}
+                strokeWidth="1"
+              />
+              {/* Channel label */}
+              {active && label && (
                 <text
-                  x={anilox.x} y={anilox.y - ANILOX_R - 6}
-                  textAnchor="middle" fontSize="9" fill="#0f6b78" fontWeight="700"
-                  onClick={e => { e.stopPropagation(); handleLabelClick("aniloxRoll", anilox.x, anilox.y - ANILOX_R - 20); }}
+                  x={DRUM_CX + PLATE_DIST} y={DRUM_CY + 4}
+                  textAnchor="middle" fontSize="9"
+                  fill={ch.displayColor} fontWeight="800"
+                >
+                  {label}
+                </text>
+              )}
+              {/* Learn mode: anilox label */}
+              {mode === "learn" && active && (
+                <text
+                  x={DRUM_CX + ANILOX_DIST} y={DRUM_CY - ANILOX_R - 5}
+                  textAnchor="middle" fontSize="8" fill="#0f6b78" fontWeight="700"
+                  onClick={e => { e.stopPropagation(); handleLabel("aniloxRoll"); }}
                 >
                   Anilox Roll
                 </text>
@@ -244,14 +201,12 @@ export function PressOverview({ job, settings, outcome, mode, selectedChannelId,
           );
         })}
 
-        {/* Arrowhead marker */}
         <defs>
           <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
             <path d="M 0 0 L 6 3 L 0 6 Z" fill="#d63b3b" />
           </marker>
         </defs>
       </svg>
-
     </div>
   );
 }

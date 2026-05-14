@@ -10,33 +10,33 @@ type Props = {
   outcome: SimulationOutcome;
   mode: PressMode;
   channelId: string;
+  stationAngle: number;
   onBack: () => void;
 };
 
-const SD_W = 540;
-const SD_H = 430;
+const SD_W = 460;
+const SD_H = 460;
 const SD_SCALE = 2;
 
-const PLATE_CX = 270;
-const PLATE_CY = 315;
-const PLATE_R = 52;
+// Canvas center — we rotate the whole scene around this point
+const CX = SD_W / 2;
+const CY = SD_H / 2;
 
-const ANILOX_CX = 270;
-const ANILOX_CY = 208;
-const ANILOX_R = 44;
+// Radii (touching circles)
+const PLATE_R = 48;
+const ANILOX_R = 36;
+const CI_R = 130;
 
-const CHAMBER_X = 148;
-const CHAMBER_Y = 38;
-const CHAMBER_W = 244;
-const CHAMBER_H = 140;
+// Distances from plate center (0,0 in rotated space):
+//   CI drum center is  PLATE_R + CI_R   to the LEFT  (negative x)
+//   Anilox center is   PLATE_R + ANILOX_R to the RIGHT (positive x)
+const CI_DIST   = PLATE_R + CI_R;    // 178
+const ANILOX_DIST = PLATE_R + ANILOX_R; // 84
 
-const CI_CX = 270;
-const CI_CY = 710;
-const CI_R = 385;
-
-function webY(impression: number): number {
-  return PLATE_CY + PLATE_R + Math.max(0, Math.round(16 - impression * 0.16));
-}
+// Small ink chamber sits past the anilox
+const CHAMBER_GAP = 4;
+const CHAMBER_W  = 44;
+const CHAMBER_HH = 16; // half-height of chamber
 
 function hexToRgba(hex: string, alpha: number): string {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -49,78 +49,92 @@ function drawFrame(
   ctx: CanvasRenderingContext2D,
   ch: ChannelDef,
   inkSettings: { aniloxVolume: number; viscosity: number; strength: number; impression: number } | undefined,
+  stationAngle: number,
   aniloxAngle: number,
-  dripY: number,
+  dripT: number,
   mode: PressMode,
   dryingRisk: number,
 ) {
   const s = SD_SCALE;
   ctx.clearRect(0, 0, SD_W * s, SD_H * s);
 
-  const impression = inkSettings?.impression ?? 54;
+  const impression   = inkSettings?.impression   ?? 54;
   const aniloxVolume = inkSettings?.aniloxVolume ?? 3.2;
-  const viscosity = inkSettings?.viscosity ?? 28;
-  const strength = inkSettings?.strength ?? 100;
-  const wy = webY(impression);
+  const viscosity    = inkSettings?.viscosity    ?? 28;
+  const strength     = inkSettings?.strength     ?? 100;
 
   // Background
   ctx.fillStyle = "#f4f7f9";
   ctx.fillRect(0, 0, SD_W * s, SD_H * s);
 
-  // ── CI drum arc ──────────────────────────────────────────
+  // ── Rotate entire scene so "right" aligns with the station's radial direction ──
+  // Station angle 0° = right side of drum (3 o'clock). We rotate the canvas
+  // so the station's outward direction faces the same way in screen space.
+  ctx.save();
+  ctx.translate(CX * s, CY * s);
+  ctx.rotate((stationAngle * Math.PI) / 180);
+
+  // In this coordinate system:
+  //   plate center at (0, 0)
+  //   CI drum center at (-CI_DIST, 0)  — to the left
+  //   anilox center at (+ANILOX_DIST, 0) — to the right
+  //   chamber beyond anilox
+
+  // ── CI drum (large circle, left) ────────────────────────────────────────────
   ctx.beginPath();
-  ctx.arc(CI_CX * s, CI_CY * s, CI_R * s, 0, Math.PI * 2);
+  ctx.arc(-CI_DIST * s, 0, CI_R * s, 0, Math.PI * 2);
   ctx.fillStyle = "#dde4ea";
   ctx.fill();
   ctx.strokeStyle = "#697784";
   ctx.lineWidth = 2 * s;
   ctx.stroke();
 
-  // ── Web ──────────────────────────────────────────────────
-  ctx.fillStyle = "#b0bec5";
-  ctx.fillRect(0, wy * s, SD_W * s, 10 * s);
-
-  // ── Plate cylinder ───────────────────────────────────────
-  // Plate squash: at very high impression, tint the contact area
+  // ── Plate cylinder ───────────────────────────────────────────────────────────
   if (impression > 80) {
     ctx.beginPath();
-    ctx.arc(PLATE_CX * s, PLATE_CY * s, (PLATE_R + 2) * s, 0, Math.PI * 2);
+    ctx.arc(0, 0, (PLATE_R + 2) * s, 0, Math.PI * 2);
     ctx.fillStyle = "rgba(214,59,59,0.15)";
     ctx.fill();
   }
   ctx.beginPath();
-  ctx.arc(PLATE_CX * s, PLATE_CY * s, PLATE_R * s, 0, Math.PI * 2);
+  ctx.arc(0, 0, PLATE_R * s, 0, Math.PI * 2);
   ctx.fillStyle = hexToRgba(ch.displayColor, 0.2);
   ctx.fill();
   ctx.strokeStyle = ch.displayColor;
   ctx.lineWidth = 2 * s;
   ctx.stroke();
-  ctx.fillStyle = ch.displayColor;
-  ctx.font = `bold ${11 * s}px Inter, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.fillText("Plate", PLATE_CX * s, (PLATE_CY + 5) * s);
 
-  // ── Anilox roll ──────────────────────────────────────────
+  // Plate label — drawn un-rotated so text is always upright
+  ctx.save();
+  ctx.rotate(-(stationAngle * Math.PI) / 180);
+  ctx.fillStyle = ch.displayColor;
+  ctx.font = `bold ${10 * s}px Inter, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("Plate", 0, 0);
+  ctx.restore();
+
+  // ── Anilox roll ──────────────────────────────────────────────────────────────
   ctx.beginPath();
-  ctx.arc(ANILOX_CX * s, ANILOX_CY * s, ANILOX_R * s, 0, Math.PI * 2);
+  ctx.arc(ANILOX_DIST * s, 0, ANILOX_R * s, 0, Math.PI * 2);
   ctx.fillStyle = "#e8edf1";
   ctx.fill();
   ctx.strokeStyle = "#697784";
   ctx.lineWidth = 1.5 * s;
   ctx.stroke();
 
-  // Cell texture: concentric dots suggesting engraving, rotated by aniloxAngle
+  // Cell texture (dots, rotate with aniloxAngle)
   const cellAlpha = 0.3 + (aniloxVolume / 5.5) * 0.6;
   ctx.save();
-  ctx.translate(ANILOX_CX * s, ANILOX_CY * s);
+  ctx.translate(ANILOX_DIST * s, 0);
   ctx.rotate((aniloxAngle * Math.PI) / 180);
-  for (let row = -3; row <= 3; row++) {
-    for (let col = -3; col <= 3; col++) {
-      const cx = col * 10 * s;
-      const cy = row * 10 * s;
-      if (Math.sqrt(cx * cx + cy * cy) < (ANILOX_R - 4) * s) {
+  for (let row = -2; row <= 2; row++) {
+    for (let col = -2; col <= 2; col++) {
+      const cx2 = col * 9 * s;
+      const cy2 = row * 9 * s;
+      if (Math.sqrt(cx2 * cx2 + cy2 * cy2) < (ANILOX_R - 5) * s) {
         ctx.beginPath();
-        ctx.arc(cx, cy, 2.5 * s, 0, Math.PI * 2);
+        ctx.arc(cx2, cy2, 2.2 * s, 0, Math.PI * 2);
         ctx.fillStyle = hexToRgba(ch.displayColor, cellAlpha);
         ctx.fill();
       }
@@ -128,63 +142,59 @@ function drawFrame(
   }
   ctx.restore();
 
-  // ── Ink drip ─────────────────────────────────────────────
-  const dripRadius = Math.max(2, 5 - viscosity * 0.06);
-  ctx.beginPath();
-  ctx.arc(
-    (CHAMBER_X + CHAMBER_W / 2) * s,
-    dripY * s,
-    dripRadius * s, 0, Math.PI * 2,
-  );
-  ctx.fillStyle = hexToRgba(ch.displayColor, 0.8);
-  ctx.fill();
-
-  // ── Ink chamber ──────────────────────────────────────────
+  // ── Ink chamber (small rect to the right of anilox) ─────────────────────────
+  const chamberX = (ANILOX_DIST + ANILOX_R + CHAMBER_GAP) * s;
   const chamberFill = 0.2 + (strength / 120) * 0.6;
-  ctx.fillStyle = `rgba(245,248,250,0.95)`;
+
+  ctx.fillStyle = "rgba(245,248,250,0.95)";
   ctx.strokeStyle = "#697784";
   ctx.lineWidth = 1.5 * s;
   ctx.beginPath();
-  ctx.roundRect(CHAMBER_X * s, CHAMBER_Y * s, CHAMBER_W * s, CHAMBER_H * s, 4 * s);
+  ctx.roundRect(chamberX, -CHAMBER_HH * s, CHAMBER_W * s, CHAMBER_HH * 2 * s, 3 * s);
   ctx.fill();
   ctx.stroke();
 
-  const fillH = CHAMBER_H * chamberFill;
+  const fillW = CHAMBER_W * chamberFill;
   ctx.fillStyle = hexToRgba(ch.displayColor, 0.55);
   ctx.beginPath();
   ctx.roundRect(
-    (CHAMBER_X + 2) * s,
-    (CHAMBER_Y + CHAMBER_H - fillH) * s,
-    (CHAMBER_W - 4) * s,
-    (fillH - 2) * s,
-    [0, 0, 3 * s, 3 * s],
+    chamberX,
+    -CHAMBER_HH * s,
+    fillW * s,
+    CHAMBER_HH * 2 * s,
+    [3 * s, 0, 0, 3 * s],
   );
   ctx.fill();
 
-  // Doctor blade
+  // ── Ink drip (travels from chamber toward anilox surface) ───────────────────
+  const dripRadius = Math.max(1.5, 4 - viscosity * 0.05);
+  const dripStartX = chamberX;
+  const dripEndX   = (ANILOX_DIST + ANILOX_R) * s;
+  const dripX = dripStartX + (dripEndX - dripStartX) * dripT;
+  ctx.beginPath();
+  ctx.arc(dripX, 0, dripRadius * s, 0, Math.PI * 2);
+  ctx.fillStyle = hexToRgba(ch.displayColor, 0.8);
+  ctx.fill();
+
+  // ── Doctor blade (trailing, anilox → lower) ──────────────────────────────────
   const doctorWarning = impression > 80 || viscosity > 38;
-  ctx.strokeStyle = doctorWarning ? "#e08c00" : "#455a64";
+  ctx.strokeStyle = (doctorWarning && mode === "operate") ? "#e08c00" : "#455a64";
   ctx.lineWidth = 2.5 * s;
   ctx.beginPath();
-  ctx.moveTo((CHAMBER_X + CHAMBER_W) * s, (CHAMBER_Y + CHAMBER_H) * s);
-  ctx.lineTo((ANILOX_CX + ANILOX_R - 4) * s, (ANILOX_CY + 8) * s);
+  ctx.moveTo(chamberX, CHAMBER_HH * s);
+  ctx.lineTo((ANILOX_DIST + ANILOX_R - 3) * s, ANILOX_R * 0.4 * s);
   ctx.stroke();
 
-  // Containment blade
+  // ── Containment blade (leading, anilox → upper) ──────────────────────────────
   const containmentWarning = mode === "operate" && dryingRisk > 65;
   ctx.strokeStyle = containmentWarning ? "#e08c00" : "#455a64";
   ctx.lineWidth = 2.5 * s;
   ctx.beginPath();
-  ctx.moveTo(CHAMBER_X * s, (CHAMBER_Y + CHAMBER_H) * s);
-  ctx.lineTo((ANILOX_CX - ANILOX_R + 4) * s, (ANILOX_CY + 8) * s);
+  ctx.moveTo(chamberX, -CHAMBER_HH * s);
+  ctx.lineTo((ANILOX_DIST + ANILOX_R - 3) * s, -ANILOX_R * 0.4 * s);
   ctx.stroke();
 
-  if (doctorWarning && mode === "operate") {
-    ctx.fillStyle = "#e08c00";
-    ctx.font = `bold ${9 * s}px Inter, sans-serif`;
-    ctx.textAlign = "left";
-    ctx.fillText("!", (ANILOX_CX + ANILOX_R + 2) * s, (ANILOX_CY + 10) * s);
-  }
+  ctx.restore(); // end scene rotation
 }
 
 type CalloutDef = {
@@ -195,27 +205,26 @@ type CalloutDef = {
 };
 
 const OPERATE_CALLOUTS: CalloutDef[] = [
-  { key: "anilox",     label: "Anilox",     x: 360, y: 195 },
-  { key: "viscosity",  label: "Viscosity",  x: 40,  y: 195 },
-  { key: "impression", label: "Impression", x: 360, y: 320 },
-  { key: "strength",   label: "Strength",   x: 40,  y: 320 },
+  { key: "anilox",     label: "Anilox",     x: 310, y: 180 },
+  { key: "viscosity",  label: "Viscosity",  x: 20,  y: 180 },
+  { key: "impression", label: "Impression", x: 20,  y: 260 },
+  { key: "strength",   label: "Strength",   x: 310, y: 260 },
 ];
 
 const LEARN_LABELS: { key: string; educationKey: string; x: number; y: number }[] = [
-  { key: "inkChamber",       educationKey: "inkChamber",       x: 40,  y: 50  },
-  { key: "doctorBlade",      educationKey: "doctorBlade",      x: 400, y: 155 },
-  { key: "containmentBlade", educationKey: "containmentBlade", x: 40,  y: 155 },
-  { key: "aniloxRoll",       educationKey: "aniloxRoll",       x: 360, y: 185 },
-  { key: "plateCylinder",    educationKey: "plateCylinder",    x: 360, y: 305 },
-  { key: "web",              educationKey: "web",              x: 360, y: 370 },
-  { key: "ciDrum",           educationKey: "ciDrum",           x: 360, y: 405 },
+  { key: "inkChamber",       educationKey: "inkChamber",       x: 310, y: 180 },
+  { key: "doctorBlade",      educationKey: "doctorBlade",      x: 310, y: 260 },
+  { key: "containmentBlade", educationKey: "containmentBlade", x: 20,  y: 180 },
+  { key: "aniloxRoll",       educationKey: "aniloxRoll",       x: 20,  y: 310 },
+  { key: "plateCylinder",    educationKey: "plateCylinder",    x: 20,  y: 260 },
+  { key: "ciDrum",           educationKey: "ciDrum",           x: 20,  y: 370 },
 ];
 
-export function StationDetail({ job, settings, outcome, mode, channelId, onBack }: Props) {
+export function StationDetail({ job, settings, outcome, mode, channelId, stationAngle, onBack }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef(0);
   const aniloxAngleRef = useRef(0);
-  const dripYRef = useRef(CHAMBER_Y + CHAMBER_H + 5);
+  const dripTRef = useRef(0);
 
   const ch = job.channels.find(c => c.id === channelId) ?? job.channels[0];
   const inkSettings = settings.inkChannels[channelId];
@@ -227,22 +236,27 @@ export function StationDetail({ job, settings, outcome, mode, channelId, onBack 
     if (!ctx) return;
 
     const viscosity = inkSettings?.viscosity ?? 28;
-    const dripSpeed = 2.5 / (viscosity / 28);
-    const dripTarget = (ANILOX_CY - ANILOX_R) - 2;
+    const dripSpeed = 0.008 * (2.5 / (viscosity / 28));
 
     function tick() {
+      dripTRef.current = (dripTRef.current + dripSpeed) % 1;
       aniloxAngleRef.current = (aniloxAngleRef.current + 0.6) % 360;
-      dripYRef.current += dripSpeed;
-      if (dripYRef.current > dripTarget) {
-        dripYRef.current = CHAMBER_Y + CHAMBER_H + 5;
-      }
-      drawFrame(ctx!, ch, inkSettings, aniloxAngleRef.current, dripYRef.current, mode, outcome.dryingRisk);
+      drawFrame(
+        ctx!,
+        ch,
+        inkSettings,
+        stationAngle,
+        aniloxAngleRef.current,
+        dripTRef.current,
+        mode,
+        outcome.dryingRisk,
+      );
       frameRef.current = requestAnimationFrame(tick);
     }
 
     frameRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frameRef.current);
-  }, [ch, inkSettings, mode, outcome.dryingRisk]);
+  }, [ch, inkSettings, stationAngle, mode, outcome.dryingRisk]);
 
   return (
     <div className="station-detail" data-testid="station-detail" style={{ position: "relative" }}>

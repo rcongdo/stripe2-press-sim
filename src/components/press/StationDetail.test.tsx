@@ -19,6 +19,7 @@ function makeProps(overrides = {}) {
     },
     mode: "operate" as const,
     channelId: "C",
+    stationAngle: 0,
     onBack: vi.fn(),
     ...overrides,
   };

@@ -4,7 +4,7 @@ import { PressOverview } from "./press/PressOverview";
 import { StationDetail } from "./press/StationDetail";
 
 export type PressMode = "operate" | "learn";
-type PressView = { type: "overview" } | { type: "station"; channelId: ChannelId };
+type PressView = { type: "overview" } | { type: "station"; channelId: ChannelId; stationAngle: number };
 
 type PressModelProps = {
   job: JobPreset;
@@ -45,7 +45,7 @@ export function PressModel({ job, settings, outcome, selectedChannelId }: PressM
           outcome={outcome}
           mode={mode}
           selectedChannelId={selectedChannelId}
-          onStationClick={id => setView({ type: "station", channelId: id })}
+          onStationClick={(id, angle) => setView({ type: "station", channelId: id, stationAngle: angle })}
         />
       ) : (
         <StationDetail
@@ -54,6 +54,7 @@ export function PressModel({ job, settings, outcome, selectedChannelId }: PressM
           outcome={outcome}
           mode={mode}
           channelId={view.channelId}
+          stationAngle={view.stationAngle}
           onBack={() => setView({ type: "overview" })}
         />
       )}
