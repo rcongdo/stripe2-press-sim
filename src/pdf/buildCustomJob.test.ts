@@ -12,7 +12,20 @@ describe("buildCustomJob", () => {
     expect(job.id).toBe("__custom__");
     expect(job.name).toBe("Custom: test.pdf");
     expect(job.customPdf.filename).toBe("test.pdf");
-    expect(job.customPdf.layerImages).toBe(mockImages);
+  });
+
+  it("re-keys layerImages from layer name to channel ID", () => {
+    const job = buildCustomJob("test.pdf", { Cyan: "C", Black: "K" }, mockImages);
+    // pdfArtwork.ts looks up images by channel ID (ch.id), not layer name
+    expect(job.customPdf.layerImages["C"]).toBe(mockImages.Cyan);
+    expect(job.customPdf.layerImages["K"]).toBe(mockImages.Black);
+    expect(job.customPdf.layerImages["Cyan"]).toBeUndefined();
+  });
+
+  it("excludes ignored layers from layerImages", () => {
+    const job = buildCustomJob("art.pdf", { Cyan: "C", Spot: "ignore" }, mockImages);
+    expect(job.customPdf.layerImages["C"]).toBe(mockImages.Cyan);
+    expect("Spot" in job.customPdf.layerImages).toBe(false);
   });
 
   it("includes only non-ignored channels", () => {

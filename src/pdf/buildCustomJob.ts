@@ -46,6 +46,14 @@ export function buildCustomJob(
 
   const inkChannels: Record<ChannelId, InkChannelSettings> = {};
   const registration: Record<ChannelId, RegistrationOffset> = {};
+  // Re-key layer images from layer name → channel ID so pdfArtwork.ts can look up by ch.id
+  const keyedImages: LayerImages = {};
+  for (const [layerName, id] of Object.entries(mapping)) {
+    if (id !== "ignore" && layerImages[layerName]) {
+      keyedImages[id as string] = layerImages[layerName];
+    }
+  }
+
   for (const ch of channels) {
     inkChannels[ch.id]   = { ...DEFAULT_INK };
     registration[ch.id]  = { ...ZERO_REG };
@@ -62,6 +70,6 @@ export function buildCustomJob(
       inkChannels,
       registration,
     },
-    customPdf: { filename, layerImages },
+    customPdf: { filename, layerImages: keyedImages },
   };
 }
