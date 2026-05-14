@@ -242,7 +242,7 @@ export function StationDetail({ job, settings, outcome, mode, channelId, onBack 
 
     frameRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frameRef.current);
-  }, [ch, inkSettings, mode]);
+  }, [ch, inkSettings, mode, outcome.dryingRisk]);
 
   return (
     <div className="station-detail" data-testid="station-detail" style={{ position: "relative" }}>
