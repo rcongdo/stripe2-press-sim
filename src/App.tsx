@@ -52,7 +52,7 @@ export default function App() {
   }
 
   function handleSettingChange(key: PressSettingKey, value: number) {
-    setSettings(current => updateSetting(selectedJob, current, key, value));
+    setSettings(current => updateSetting(activeJob, current, key, value));
   }
 
   function handleRegistrationChange(channelId: ChannelId, offset: RegistrationOffset) {
@@ -63,24 +63,24 @@ export default function App() {
   }
 
   function handleInkChannelChange(channel: ChannelId, key: InkChannelSettingKey, value: number) {
-    setSettings(current => updateInkChannelSetting(selectedJob, current, channel, key, value));
+    setSettings(current => updateInkChannelSetting(activeJob, current, channel, key, value));
   }
 
   function handleSpotChannelToggle(channelId: ChannelId, active: boolean) {
     setSettings(current =>
       active
-        ? activateSpotChannel(selectedJob, current, channelId)
+        ? activateSpotChannel(activeJob, current, channelId)
         : deactivateSpotChannel(current, channelId)
     );
   }
 
   function resetJob() {
-    setSettings(createInitialSettings(selectedJob));
+    setSettings(createInitialSettings(activeJob));
     setScore(null);
   }
 
   function makePerfect() {
-    setSettings(createPerfectSettings(selectedJob));
+    setSettings(createPerfectSettings(activeJob));
     setScore(null);
   }
 
