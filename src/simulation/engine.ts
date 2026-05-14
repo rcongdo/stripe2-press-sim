@@ -18,6 +18,11 @@ function toSeverity(value: number): number {
   return Math.round(clamp01(value) * 100);
 }
 
+// Impression thresholds (press-physics constants, not job-specific)
+const IMP_START  = 15;   // below this: zero ink transfer
+const IMP_TARGET = 60;   // ideal impression — full transfer, zero gain
+const IMP_GAIN_MAX = 0.20; // gain caps at 20% at full over-impression
+
 export function simulatePress(job: JobPreset, settings: PressSettings): SimulationOutcome {
   const activeChannels = job.channels.filter(ch => ch.id in settings.inkChannels);
 
@@ -42,22 +47,30 @@ export function simulatePress(job: JobPreset, settings: PressSettings): Simulati
 
   for (const ch of activeChannels) {
     const ink = settings.inkChannels[ch.id];
-    const aniloxLoadCh     = ink.aniloxVolume / job.target.aniloxVolume;
-    const impressionHighCh = clamp01((ink.impression - job.target.impression) / 42);
-    const impressionLowCh  = clamp01((job.target.impression - ink.impression) / 38);
+    const imp = ink.impression;
+
+    const aniloxLoadCh      = ink.aniloxVolume / job.target.aniloxVolume;
     const inkStrengthLoadCh = ink.strength / 100;
     const viscosityDeltaCh  = (ink.viscosity / job.target.viscosity) - 1;
 
-    channelDensity[ch.id] = Number(Math.max(
-      0.35,
-      ch.targetDensity * (aniloxLoadCh * inkStrengthLoadCh * (1 - impressionLowCh * 0.42) + impressionHighCh * 0.08),
+    // Transfer factor: 0 below IMP_START, ramps 0→1 from IMP_START→IMP_TARGET
+    const impTransferCh = imp < IMP_START
+      ? 0
+      : clamp01((imp - IMP_START) / (IMP_TARGET - IMP_START));
+
+    // Over-impression factor: 0 at ≤IMP_TARGET, ramps 0→1 from IMP_TARGET→100
+    const impOverCh = clamp01((imp - IMP_TARGET) / (100 - IMP_TARGET));
+
+    channelDensity[ch.id] = Number(Math.max(0,
+      ch.targetDensity * aniloxLoadCh * inkStrengthLoadCh * impTransferCh,
     ).toFixed(2));
 
-    channelGain[ch.id] = Number((
-      impressionHighCh * 0.34 - impressionLowCh * 0.15 + viscosityDeltaCh * 0.03
-    ).toFixed(2));
+    // Gain increases with over-impression (capped at 20%); slight viscosity effect
+    channelGain[ch.id] = Number(
+      Math.min(IMP_GAIN_MAX, Math.max(-0.05, impOverCh * IMP_GAIN_MAX + viscosityDeltaCh * 0.03))
+    .toFixed(2));
 
-    sumImpression   += ink.impression;
+    sumImpression   += imp;
     sumStrength     += ink.strength;
     sumViscosity    += ink.viscosity;
     sumAniloxVolume += ink.aniloxVolume;
@@ -74,8 +87,18 @@ export function simulatePress(job: JobPreset, settings: PressSettings): Simulati
   const meanViscosity    = sumViscosity    / n;
   const meanAniloxVolume = sumAniloxVolume / n;
 
-  const impressionHigh  = clamp01((meanImpression - job.target.impression) / 42);
-  const impressionLow   = clamp01((job.target.impression - meanImpression) / 38);
+  // Aggregate impression factors
+  const meanImpTransfer = meanImpression < IMP_START
+    ? 0
+    : clamp01((meanImpression - IMP_START) / (IMP_TARGET - IMP_START));
+  const impressionHigh = clamp01((meanImpression - IMP_TARGET) / (100 - IMP_TARGET));
+  const impressionLow  = 1 - meanImpTransfer; // 1.0 = no transfer, 0.0 = ideal
+
+  // Blotchy factor: peaks mid-transition (partial printing zone)
+  const blotch = meanImpTransfer > 0 && meanImpTransfer < 1
+    ? 4 * meanImpTransfer * (1 - meanImpTransfer)
+    : 0;
+
   const viscosityDelta  = meanViscosity / job.target.viscosity - 1;
   const inkStrengthLoad = meanStrength / 100;
   const meanAniloxLoad  = meanAniloxVolume / job.target.aniloxVolume;
@@ -86,7 +109,7 @@ export function simulatePress(job: JobPreset, settings: PressSettings): Simulati
   const defects: DefectSeverity = {
     pinholes:   toSeverity(impressionLow * 0.9 + scale(meanAniloxVolume, job.target.aniloxVolume, 3.2) * 0.12),
     dirtyPrint: toSeverity(impressionHigh * 0.82 + Math.max(0, viscosityDelta) * 0.08),
-    mottle:     toSeverity(scale(meanViscosity, job.target.viscosity, 18) * 0.55 + dryingRisk * 0.28),
+    mottle:     toSeverity(blotch * 0.6 + scale(meanViscosity, job.target.viscosity, 18) * 0.3 + dryingRisk * 0.28),
     skips:      toSeverity(impressionLow * 0.7 + tensionError * 0.3),
     edgeSquash: toSeverity(impressionHigh * 0.92),
   };

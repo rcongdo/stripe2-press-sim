@@ -27,7 +27,7 @@ describe("simulatePress", () => {
       dryerTemperature: 150,
       pressSpeed: 650,
       registration: zeroReg,
-      inkChannels: makeChannels(3.2, 28, 100, 54),
+      inkChannels: makeChannels(3.2, 28, 100, 60),
     });
     expect(outcome.setupQuality).toBeGreaterThanOrEqual(90);
     expect(outcome.defects.pinholes).toBeLessThan(10);

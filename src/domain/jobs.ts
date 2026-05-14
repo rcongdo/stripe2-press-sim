@@ -62,7 +62,7 @@ export const snackPouchJob: JobPreset = {
     speed: 650,
     aniloxVolume: 3.2,
     viscosity: 28,
-    impression: 54,
+    impression: 60,
   },
   initialSettings: {
     substrate: "pet-film",
@@ -124,7 +124,7 @@ export const labelPrintJob: JobPreset = {
     speed: 450,
     aniloxVolume: 2.8,
     viscosity: 24,
-    impression: 50,
+    impression: 60,
   },
   initialSettings: {
     substrate: "opp-film",
