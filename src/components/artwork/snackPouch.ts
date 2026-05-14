@@ -24,13 +24,10 @@ const ZONE_NUTRITION = 3;
 type ProcessId = "C" | "M" | "Y" | "K";
 type ArtCmyk = Record<ProcessId, number>;
 
-const ART_HEADER_BG:    ArtCmyk = { C: 0.65, M: 0.00, Y: 0.38, K: 0.71 };
-const ART_HEADER_SUB:   ArtCmyk = { C: 0.20, M: 0.00, Y: 0.20, K: 0.17 };
 const ART_SKY_TOP:      ArtCmyk = { C: 0.00, M: 0.31, Y: 0.86, K: 0.09 };
 const ART_SKY_BOT:      ArtCmyk = { C: 0.00, M: 0.58, Y: 0.92, K: 0.25 };
 const ART_SUN:          ArtCmyk = { C: 0.00, M: 0.20, Y: 0.73, K: 0.06 };
 const ART_MOUNTAIN:     ArtCmyk = { C: 0.00, M: 0.45, Y: 0.72, K: 0.77 };
-const ART_FLAVOR_BG:    ArtCmyk = { C: 0.00, M: 0.43, Y: 0.95, K: 0.17 };
 const ART_NUTRITION_BG: ArtCmyk = { C: 0.00, M: 0.02, Y: 0.09, K: 0.04 };
 const ART_BROWN_TEXT:   ArtCmyk = { C: 0.00, M: 0.22, Y: 0.43, K: 0.71 };
 
@@ -69,12 +66,6 @@ function drawProcessArtwork(
     drawFn();
   }
 
-  fi(ART_HEADER_BG, () => ctx.fillRect(pouchX + hz.x, hz.y, hz.w, hz.h));
-  fi(ART_HEADER_SUB, () => {
-    ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.fillText("TRAIL MIX CO.", pouchX + POUCH_W / 2, hz.y + 54 * SCALE);
-  });
   fi(ART_SKY_TOP, () => ctx.fillRect(pouchX + gz.x, gz.y,             gz.w, gz.h / 2));
   fi(ART_SKY_BOT, () => ctx.fillRect(pouchX + gz.x, gz.y + gz.h / 2, gz.w, gz.h / 2));
   fi(ART_SUN, () => {
@@ -94,7 +85,6 @@ function drawProcessArtwork(
     ctx.closePath();
     ctx.fill();
   });
-  fi(ART_FLAVOR_BG,    () => ctx.fillRect(pouchX + fz.x, fz.y, fz.w, fz.h));
   fi(ART_NUTRITION_BG, () => ctx.fillRect(pouchX + nz.x, nz.y, nz.w, nz.h));
   fi(ART_BROWN_TEXT,   () => {
     ctx.font = `${9 * SCALE}px Inter, sans-serif`;
@@ -144,16 +134,6 @@ function drawProcessPlate(
     dotsInPath(() => ctx.rect(rx, ry, rw, rh), rw, rh, rx + rw / 2, ry + rh / 2, art);
   }
 
-  dotsInRect(ART_HEADER_BG, pouchX + hz.x, hz.y, hz.w, hz.h);
-
-  const subA = Math.min(1, ART_HEADER_SUB[pid] * densityScale);
-  if (subA >= 0.005) {
-    ctx.save(); ctx.globalAlpha = subA;
-    ctx.font = `800 ${11 * SCALE}px Inter, sans-serif`; ctx.textAlign = "center";
-    ctx.fillText("TRAIL MIX CO.", pouchX + POUCH_W / 2, hz.y + 54 * SCALE);
-    ctx.restore();
-  }
-
   dotsInRect(ART_SKY_TOP, pouchX + gz.x, gz.y,             gz.w, gz.h / 2);
   dotsInRect(ART_SKY_BOT, pouchX + gz.x, gz.y + gz.h / 2, gz.w, gz.h / 2);
 
@@ -179,7 +159,6 @@ function drawProcessPlate(
     ART_MOUNTAIN,
   );
 
-  dotsInRect(ART_FLAVOR_BG,    pouchX + fz.x, fz.y, fz.w, fz.h);
   dotsInRect(ART_NUTRITION_BG, pouchX + nz.x, nz.y, nz.w, nz.h);
 
   const txtA = Math.min(1, ART_BROWN_TEXT[pid] * densityScale);
