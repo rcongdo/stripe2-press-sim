@@ -145,6 +145,7 @@ export default function App() {
           job={selectedJob}
           settings={settings}
           mode={mode}
+          selectedChannelId={selectedChannelId}
           onRegistrationChange={handleRegistrationChange}
           onInkChannelChange={handleInkChannelChange}
           onSpotChannelToggle={handleSpotChannelToggle}

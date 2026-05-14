@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { aniloxPresets } from "../domain/jobs";
 import type { TrainingMode } from "../simulation/scoring";
 import type {
@@ -17,6 +17,7 @@ type ControlPanelProps = {
   onInkChannelChange: (channel: ChannelId, key: InkChannelSettingKey, value: number) => void;
   onSpotChannelToggle: (channelId: ChannelId, active: boolean) => void;
   onChannelSelect?: (id: ChannelId) => void;
+  selectedChannelId?: ChannelId;
 };
 
 const inkSliderKeys: InkChannelSettingKey[] = ["viscosity", "strength", "impression"];
@@ -52,12 +53,18 @@ function InfoTip({ text }: { text: string }) {
 export function ControlPanel({
   job, settings, mode,
   onRegistrationChange, onInkChannelChange, onSpotChannelToggle,
-  onChannelSelect,
+  onChannelSelect, selectedChannelId,
 }: ControlPanelProps) {
   const guided = mode === "guided";
 
   const firstActive = job.channels.find(ch => ch.id in settings.inkChannels);
   const [selectedId, setSelectedId] = useState<ChannelId>(firstActive?.id ?? "C");
+
+  useEffect(() => {
+    if (selectedChannelId && selectedChannelId in settings.inkChannels) {
+      setSelectedId(selectedChannelId);
+    }
+  }, [selectedChannelId, settings.inkChannels]);
 
   function selectChannel(id: ChannelId) {
     setSelectedId(id);

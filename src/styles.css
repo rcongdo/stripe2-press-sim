@@ -756,11 +756,11 @@ h3 {
 }
 
 .station-nav {
-  display: flex;
+  display: grid;
+  grid-template-columns: 28px 1fr 28px;
   align-items: center;
   gap: 6px;
   flex: 1;
-  justify-content: center;
 }
 
 .station-nav__btn {
@@ -776,6 +776,7 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .station-nav__btn:hover {
@@ -783,6 +784,14 @@ h3 {
 }
 
 .station-nav__label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  text-align: center;
+}
+
+.station-nav__number {
   font-size: 0.88rem;
   font-weight: 700;
   color: #1a2530;
@@ -790,8 +799,9 @@ h3 {
 }
 
 .station-nav__channel {
-  font-weight: 400;
+  font-size: 0.75rem;
   color: #697784;
+  white-space: nowrap;
 }
 
 .station-nav__count {

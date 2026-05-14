@@ -272,7 +272,8 @@ export function StationDetail({ job, settings, outcome, mode, channelId, station
         <div className="station-nav">
           <button type="button" className="station-nav__btn" aria-label="Previous station" onClick={onPrevStation}>‹</button>
           <span className="station-nav__label">
-            Station {stationNumber} <span className="station-nav__channel">({channelName})</span>
+            <span className="station-nav__number">Station {stationNumber}</span>
+            <span className="station-nav__channel">{channelName}</span>
           </span>
           <button type="button" className="station-nav__btn" aria-label="Next station" onClick={onNextStation}>›</button>
         </div>
