@@ -75,6 +75,22 @@ function resolve<T>(
   }
 }
 
+// XObjects are PDF streams (PDFRawStream), not plain PDFDicts. Both types carry
+// a .dict property. This extracts whichever dict is available.
+function resolveDict(
+  pdfDoc: PDFDocument,
+  ref: ReturnType<PDFDict["get"]>,
+): PDFDict | undefined {
+  if (!ref) return undefined;
+  try {
+    const obj = pdfDoc.context.lookup(ref) as unknown as { dict?: PDFDict };
+    if (obj instanceof PDFDict) return obj;
+    return obj?.dict instanceof PDFDict ? obj.dict : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function analyzeColorSpaces(buffer: ArrayBuffer): Promise<AnalysisResult> {
   const pdfDoc = await PDFDocument.load(buffer);
   const page = pdfDoc.getPage(0);
@@ -109,11 +125,11 @@ async function analyzeColorSpaces(buffer: ArrayBuffer): Promise<AnalysisResult> 
     }
   }
 
-  // Detect DeviceCMYK usage in image XObjects
+  // Detect DeviceCMYK usage in image XObjects (which are streams, not plain dicts)
   const xObjectDict = resolve(pdfDoc, resources.get(PDFName.of("XObject")), PDFDict);
   if (xObjectDict) {
     for (const [, ref] of xObjectDict.entries()) {
-      const xObj = resolve(pdfDoc, ref, PDFDict);
+      const xObj = resolveDict(pdfDoc, ref);
       if (!xObj) continue;
       const csObj = resolve(pdfDoc, xObj.get(PDFName.of("ColorSpace")), PDFName);
       if (csObj?.asString() === "/DeviceCMYK") {
