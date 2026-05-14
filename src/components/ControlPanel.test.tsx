@@ -9,7 +9,6 @@ function makeProps(overrides: Partial<Parameters<typeof ControlPanel>[0]> = {}) 
     job: snackPouchJob,
     settings: createInitialSettings(snackPouchJob),
     mode: "guided" as const,
-    onSettingChange: vi.fn(),
     onRegistrationChange: vi.fn(),
     onInkChannelChange: vi.fn(),
     onSpotChannelToggle: vi.fn(),

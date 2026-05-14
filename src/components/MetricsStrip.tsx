@@ -1,9 +1,42 @@
-import type { ChannelDef, JobPreset, SimulationOutcome } from "../domain/types";
+import { useRef, useState } from "react";
+import type { TrainingMode } from "../simulation/scoring";
+import type { ChannelDef, JobPreset, PressSettingKey, PressSettings, SimulationOutcome } from "../domain/types";
 
 type MetricsStripProps = {
   job: JobPreset;
+  settings: PressSettings;
   outcome: SimulationOutcome;
+  mode: TrainingMode;
+  onSettingChange: (key: PressSettingKey, value: number) => void;
 };
+
+const PRESS_SETTING_KEYS: PressSettingKey[] = ["webTension", "dryerTemperature", "pressSpeed"];
+
+const PRESS_TIPS: Partial<Record<PressSettingKey, string>> = {
+  webTension: "Controls how tightly the substrate is pulled across the press. Too loose causes weaving and registration drift; too tight risks stretching or tearing, which distorts the printed image.",
+  dryerTemperature: "Sets the temperature of the hot-air dryer that cures ink between stations. Too low leaves ink wet, causing smearing; too high can shrink or delaminate the substrate.",
+  pressSpeed: "How fast the web travels through the press in feet per minute. Higher speeds boost output but give inks less time to transfer and dry, raising drying risk and often reducing density.",
+};
+
+function InfoTip({ text }: { text: string }) {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  function handleEnter() {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ top: r.top, left: r.right + 10 });
+    }
+  }
+
+  return (
+    <>
+      <button ref={btnRef} type="button" className="info-tip-btn" aria-label="More information"
+        onMouseEnter={handleEnter} onMouseLeave={() => setPos(null)}>ⓘ</button>
+      {pos && <div className="info-tip-popup" style={{ top: pos.top, left: pos.left }}>{text}</div>}
+    </>
+  );
+}
 
 function registerStatus(err: number): { label: string; color: string } {
   if (err < 0.5) return { label: "Good", color: "#22a559" };
@@ -40,14 +73,43 @@ function ChannelTable({ channels, outcome }: { channels: ChannelDef[]; outcome: 
   );
 }
 
-export function MetricsStrip({ job, outcome }: MetricsStripProps) {
+export function MetricsStrip({ job, settings, outcome, mode, onSettingChange }: MetricsStripProps) {
   const reg = registerStatus(outcome.registerError);
   const channels = job.channels.filter(ch => ch.id in outcome.channelDensity);
   const first = channels.slice(0, 5);
   const second = channels.slice(5, 10);
 
+  const guided = mode === "guided";
+
   return (
     <section className="metrics-strip" aria-label="Live press metrics">
+      <div className="metrics-job">
+        <div>
+          <p className="panel-label">Job</p>
+          <h2>{job.name}</h2>
+          <p>{job.description}</p>
+        </div>
+        <div className="control-group metrics-press-settings">
+          <h3>Press settings</h3>
+          {PRESS_SETTING_KEYS.map(key => {
+            const range = job.ranges[key];
+            const inputId = `press-setting-${key}`;
+            return (
+              <div className="control" key={key}>
+                <span>
+                  <span className="control-label-row">
+                    <label htmlFor={inputId}>{range.label}</label>
+                    {guided && PRESS_TIPS[key] && <InfoTip text={PRESS_TIPS[key]!} />}
+                  </span>
+                  <strong>{settings[key]} {range.unit}</strong>
+                </span>
+                <input id={inputId} type="range" min={range.min} max={range.max} step={range.step}
+                  value={settings[key]} onChange={e => onSettingChange(key, Number(e.target.value))} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
       <div className="metrics-2x2">
         <div className="metric metric--boxed">
           <span>Setup quality</span>

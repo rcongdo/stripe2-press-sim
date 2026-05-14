@@ -116,6 +116,29 @@ h3 {
   margin: 14px 0;
 }
 
+.metrics-job {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-width: 220px;
+  max-width: 280px;
+}
+
+.metrics-press-settings {
+  border-top: 1px solid #d9e0e6;
+  padding-top: 10px;
+  margin-top: 10px;
+}
+
+.metrics-press-settings h3 {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #697784;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .metrics-2x2 {
   display: grid;
   grid-template-columns: 1fr 1fr;

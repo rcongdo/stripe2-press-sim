@@ -5,7 +5,6 @@ import type {
   ChannelId,
   InkChannelSettingKey,
   JobPreset,
-  PressSettingKey,
   PressSettings,
   RegistrationOffset,
 } from "../domain/types";
@@ -14,20 +13,15 @@ type ControlPanelProps = {
   job: JobPreset;
   settings: PressSettings;
   mode: TrainingMode;
-  onSettingChange: (key: PressSettingKey, value: number) => void;
   onRegistrationChange: (channelId: ChannelId, offset: RegistrationOffset) => void;
   onInkChannelChange: (channel: ChannelId, key: InkChannelSettingKey, value: number) => void;
   onSpotChannelToggle: (channelId: ChannelId, active: boolean) => void;
   onChannelSelect?: (id: ChannelId) => void;
 };
 
-const sliderKeys: PressSettingKey[] = ["webTension", "dryerTemperature", "pressSpeed"];
 const inkSliderKeys: InkChannelSettingKey[] = ["viscosity", "strength", "impression"];
 
-const TIPS: Partial<Record<PressSettingKey | InkChannelSettingKey | "aniloxRoll" | "registration", string>> = {
-  webTension: "Controls how tightly the substrate is pulled across the press. Too loose causes weaving and registration drift; too tight risks stretching or tearing, which distorts the printed image.",
-  dryerTemperature: "Sets the temperature of the hot-air dryer that cures ink between stations. Too low leaves ink wet, causing smearing; too high can shrink or delaminate the substrate.",
-  pressSpeed: "How fast the web travels through the press in feet per minute. Higher speeds boost output but give inks less time to transfer and dry, raising drying risk and often reducing density.",
+const TIPS: Partial<Record<InkChannelSettingKey | "aniloxRoll" | "registration", string>> = {
   aniloxRoll: "The anilox is an engraved roller that meters a precise ink volume. A lighter cell (lower BCM) deposits less ink for fine work; a heavier cell floods more for solid coverage.",
   viscosity: "Ink viscosity controls flow. Lower viscosity inks transfer more readily and level out, improving dot smoothness. Higher viscosity keeps ink from flowing, preserving sharp detail on fine screens.",
   strength: "Pigment concentration. Higher strength gives rich color at lighter film weights; lower strength produces paler results that may need heavier ink deposits to hit density targets.",
@@ -57,7 +51,7 @@ function InfoTip({ text }: { text: string }) {
 
 export function ControlPanel({
   job, settings, mode,
-  onSettingChange, onRegistrationChange, onInkChannelChange, onSpotChannelToggle,
+  onRegistrationChange, onInkChannelChange, onSpotChannelToggle,
   onChannelSelect,
 }: ControlPanelProps) {
   const guided = mode === "guided";
@@ -95,33 +89,6 @@ export function ControlPanel({
 
   return (
     <aside className="control-panel" aria-label="Press setup controls">
-      <div>
-        <p className="panel-label">Job</p>
-        <h2>{job.name}</h2>
-        <p>{job.description}</p>
-      </div>
-
-      <div className="control-group">
-        <h3>Press settings</h3>
-        {sliderKeys.map(key => {
-          const range = job.ranges[key];
-          const inputId = `setting-${key}`;
-          return (
-            <div className="control" key={key}>
-              <span>
-                <span className="control-label-row">
-                  <label htmlFor={inputId}>{range.label}</label>
-                  {guided && TIPS[key] && <InfoTip text={TIPS[key]!} />}
-                </span>
-                <strong>{settings[key]} {range.unit}</strong>
-              </span>
-              <input id={inputId} type="range" min={range.min} max={range.max} step={range.step}
-                value={settings[key]} onChange={e => onSettingChange(key, Number(e.target.value))} />
-            </div>
-          );
-        })}
-      </div>
-
       <div className="control-group">
         <h3>Ink</h3>
 

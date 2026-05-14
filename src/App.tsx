@@ -102,7 +102,13 @@ export default function App() {
         </div>
       </header>
 
-      <MetricsStrip outcome={outcome} job={selectedJob} />
+      <MetricsStrip
+        job={selectedJob}
+        settings={settings}
+        outcome={outcome}
+        mode={mode}
+        onSettingChange={handleSettingChange}
+      />
 
       <div className="simulator-grid">
         <div className="print-workspace">
@@ -138,7 +144,6 @@ export default function App() {
           job={selectedJob}
           settings={settings}
           mode={mode}
-          onSettingChange={handleSettingChange}
           onRegistrationChange={handleRegistrationChange}
           onInkChannelChange={handleInkChannelChange}
           onSpotChannelToggle={handleSpotChannelToggle}
