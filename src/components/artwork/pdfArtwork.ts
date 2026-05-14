@@ -1,10 +1,15 @@
 import type { ChannelDef } from "../../domain/types";
 
 // Must match PrintPreview.tsx constants
-const SCALE     = 4;
-const POUCH_W   = 280 * SCALE; // 1120
-const POUCH_H   = 400 * SCALE; // 1600
-const POUCH_TOP =  10 * SCALE; //   40
+const SCALE       = 4;
+const W_CANVAS    = 920 * SCALE;   // 3680
+const H_CANVAS    = 420 * SCALE;   // 1680
+const PITCH       = 12;             // halftone cell size (px), matches snackPouch
+const MIN_ALPHA   = 0.25;
+
+// PrintPreview iterates POUCH_ORIGINS and calls drawChannel once per origin.
+// Custom PDFs fill the whole canvas, so we only draw on the first (leftmost) pass.
+const FIRST_POUCH_X = 10 * SCALE;  // POUCH_ORIGINS[0]
 
 type DrawChannelFn = (
   ctx: CanvasRenderingContext2D,
@@ -20,13 +25,87 @@ type DrawChannelFn = (
 export function createPdfDrawChannel(
   layerImages: Record<string, ImageBitmap>,
 ): DrawChannelFn {
-  return function drawPdfChannel(ctx, ch, pouchX, regX, regY, density, _gain, _showDots) {
+  return function drawPdfChannel(ctx, ch, pouchX, regX, regY, density, gain, showDots) {
+    // Skip the two duplicate passes; draw once to fill the full canvas
+    if (pouchX !== FIRST_POUCH_X) return;
+
     const img = layerImages[ch.id];
     if (!img) return;
-    const alpha = Math.min(1, Math.max(0.05, density / (ch.targetDensity || 1)));
+
+    const densityScale = Math.min(1.5, density / (ch.targetDensity || 1));
     ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.drawImage(img, pouchX + regX, POUCH_TOP + regY, POUCH_W, POUCH_H);
+    ctx.fillStyle = ch.displayColor;
+
+    if (showDots) {
+      ctx.globalAlpha = Math.min(1, Math.max(MIN_ALPHA, density));
+      drawPdfHalftone(ctx, img, ch, regX, regY, gain, densityScale);
+    } else {
+      ctx.globalAlpha = Math.min(1, Math.max(0.05, densityScale));
+      ctx.drawImage(img, regX, regY, W_CANVAS, H_CANVAS);
+    }
+
     ctx.restore();
   };
+}
+
+function drawPdfHalftone(
+  ctx: CanvasRenderingContext2D,
+  img: ImageBitmap,
+  ch: ChannelDef,
+  regX: number,
+  regY: number,
+  gain: number,
+  densityScale: number,
+): void {
+  // Down-sample to one pixel per halftone cell for fast coverage lookup
+  const gridW = Math.ceil(W_CANVAS / PITCH) + 2;
+  const gridH = Math.ceil(H_CANVAS / PITCH) + 2;
+  const sampleCanvas = new OffscreenCanvas(gridW, gridH);
+  const sampleCtx = sampleCanvas.getContext("2d") as unknown as OffscreenCanvasRenderingContext2D;
+  sampleCtx.drawImage(img, 0, 0, gridW, gridH);
+  const pixels = sampleCtx.getImageData(0, 0, gridW, gridH).data;
+
+  const angle = (ch.screenAngle * Math.PI) / 180;
+  const cos   = Math.cos(-angle);
+  const sin   = Math.sin(-angle);
+
+  // Center the rotated grid on the image center in canvas space
+  const cxCanvas = regX + W_CANVAS / 2;
+  const cyCanvas = regY + H_CANVAS / 2;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, W_CANVAS, H_CANVAS);
+  ctx.clip();
+  ctx.translate(cxCanvas, cyCanvas);
+  ctx.rotate(angle);
+
+  const span = Math.ceil(Math.hypot(W_CANVAS, H_CANVAS) / 2) + PITCH;
+
+  for (let dx = -span; dx <= span; dx += PITCH) {
+    for (let dy = -span; dy <= span; dy += PITCH) {
+      // Inverse-rotate to find the corresponding image position
+      const unrotX = cos * dx - sin * dy;
+      const unrotY = sin * dx + cos * dy;
+
+      // Map to sample grid index
+      const gx = Math.round((unrotX + W_CANVAS / 2) / PITCH);
+      const gy = Math.round((unrotY + H_CANVAS / 2) / PITCH);
+      if (gx < 0 || gx >= gridW || gy < 0 || gy >= gridH) continue;
+
+      const pi = (gy * gridW + gx) * 4;
+      const brightness = (pixels[pi] + pixels[pi + 1] + pixels[pi + 2]) / (3 * 255);
+      const coverage = (1 - brightness) * densityScale;
+      if (coverage < 0.01) continue;
+
+      const radius = PITCH * 0.48 * Math.sqrt(coverage) * (1 + gain * 1.5);
+      if (radius < 0.5) continue;
+
+      ctx.beginPath();
+      ctx.arc(dx, dy, Math.max(0.5, radius), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
 }

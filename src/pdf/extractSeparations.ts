@@ -4,9 +4,6 @@ import { PDFArray, PDFDict, PDFDocument, PDFName } from "pdf-lib";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = PdfWorkerUrl;
 
-const TARGET_W = 1120;
-const TARGET_H = 1600;
-
 export type ExtractedLayers = {
   names: string[];
   images: Record<string, ImageBitmap>;
@@ -195,14 +192,12 @@ async function renderCmykChannels(
   try {
     const page = await pdf.getPage(1);
     const viewport = page.getViewport({ scale: 1 });
-    const scale = Math.min(TARGET_W / viewport.width, TARGET_H / viewport.height);
-    const scaled = page.getViewport({ scale });
-    const w = Math.round(scaled.width);
-    const h = Math.round(scaled.height);
+    const w = Math.round(viewport.width);
+    const h = Math.round(viewport.height);
 
     const composite = new OffscreenCanvas(w, h);
     const ctx = composite.getContext("2d") as unknown as CanvasRenderingContext2D;
-    await page.render({ canvas: null, canvasContext: ctx, viewport: scaled }).promise;
+    await page.render({ canvas: null, canvasContext: ctx, viewport }).promise;
 
     const rgbaData = (composite.getContext("2d") as unknown as OffscreenCanvasRenderingContext2D)
       .getImageData(0, 0, w, h).data;
@@ -261,12 +256,10 @@ async function renderFirstPage(bytes: Uint8Array): Promise<ImageBitmap> {
   try {
     const page = await pdf.getPage(1);
     const viewport = page.getViewport({ scale: 1 });
-    const scale = Math.min(TARGET_W / viewport.width, TARGET_H / viewport.height);
-    const scaled = page.getViewport({ scale });
 
-    const canvas = new OffscreenCanvas(Math.round(scaled.width), Math.round(scaled.height));
+    const canvas = new OffscreenCanvas(Math.round(viewport.width), Math.round(viewport.height));
     const ctx = canvas.getContext("2d") as unknown as CanvasRenderingContext2D;
-    await page.render({ canvas: null, canvasContext: ctx, viewport: scaled }).promise;
+    await page.render({ canvas: null, canvasContext: ctx, viewport }).promise;
     return createImageBitmap(canvas);
   } finally {
     await pdf.destroy();
