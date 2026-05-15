@@ -21,7 +21,8 @@ function toSeverity(value: number): number {
 // Impression thresholds (press-physics constants, not job-specific)
 const IMP_START  = 15;   // below this: zero ink transfer
 const IMP_TARGET = 60;   // ideal impression — full transfer, zero gain
-const IMP_GAIN_MAX = 0.20; // gain caps at 20% at full over-impression
+const IMP_GAIN_MAX  = 0.20; // gain caps at +20% at full over-impression
+const IMP_LOSS_MAX  = 0.20; // SCTV bottoms at −20% at IMP_START (dot loss / under-impression)
 
 export function simulatePress(job: JobPreset, settings: PressSettings): SimulationOutcome {
   const activeChannels = job.channels.filter(ch => ch.id in settings.inkChannels);
@@ -59,15 +60,19 @@ export function simulatePress(job: JobPreset, settings: PressSettings): Simulati
       : clamp01((imp - IMP_START) / (IMP_TARGET - IMP_START));
 
     // Over-impression factor: 0 at ≤IMP_TARGET, ramps 0→1 from IMP_TARGET→100
-    const impOverCh = clamp01((imp - IMP_TARGET) / (100 - IMP_TARGET));
+    const impOverCh   = clamp01((imp - IMP_TARGET) / (100 - IMP_TARGET));
+    // Under-impression factor: 0 at IMP_TARGET, ramps 0→1 as imp falls to IMP_START
+    const impUnderCh  = 1 - impTransferCh;
 
     channelDensity[ch.id] = Number(Math.max(0,
       ch.targetDensity * aniloxLoadCh * inkStrengthLoadCh * impTransferCh,
     ).toFixed(2));
 
-    // Gain increases with over-impression (capped at 20%); slight viscosity effect
+    // Positive gain from over-impression; negative gain (dot loss) from under-impression
     channelGain[ch.id] = Number(
-      Math.min(IMP_GAIN_MAX, Math.max(-0.05, impOverCh * IMP_GAIN_MAX + viscosityDeltaCh * 0.03))
+      Math.min(IMP_GAIN_MAX, Math.max(-IMP_LOSS_MAX,
+        impOverCh * IMP_GAIN_MAX - impUnderCh * IMP_LOSS_MAX + viscosityDeltaCh * 0.03,
+      ))
     .toFixed(2));
 
     sumImpression   += imp;
