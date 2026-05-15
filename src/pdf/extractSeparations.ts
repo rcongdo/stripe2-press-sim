@@ -39,7 +39,12 @@ export async function extractSeparations(file: File): Promise<ExtractedLayers> {
 
   if (cmykNames.length > 0) {
     try {
-      const cmykImages = await renderCmykChannels(buffer, cmykNames);
+      // Hide all separation inks so only DeviceCMYK content remains in the render.
+      // Without this, spot-ink pixels contaminate the CMYK reverse-decomposition.
+      const cmykOnlyBytes = separationNames.length > 0
+        ? await rewriteTintFunctions(buffer, "")   // "" matches no ink → all separations → white
+        : new Uint8Array(buffer);
+      const cmykImages = await renderCmykChannels(cmykOnlyBytes, cmykNames);
       Object.assign(images, cmykImages);
     } catch (e) {
       console.warn("Failed to render CMYK channels:", e);
@@ -185,7 +190,7 @@ async function rewriteTintFunctions(
 }
 
 async function renderCmykChannels(
-  buffer: ArrayBuffer,
+  buffer: ArrayBuffer | Uint8Array,
   names: string[],
 ): Promise<Record<string, ImageBitmap>> {
   const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
