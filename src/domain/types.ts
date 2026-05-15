@@ -1,5 +1,8 @@
 export type SubstrateId = "pet-film" | "opp-film" | "paper-laminate";
 
+export type PressType = "ci" | "inline";
+export type InkType   = "uv" | "water-based" | "solvent";
+
 export type ChannelId = string;
 
 export type PressSettingKey =
@@ -88,6 +91,8 @@ export type JobPreset = {
   };
   initialSettings: PressSettings;
   target: JobTarget;
+  defaultPressType?: PressType;
+  defaultInkType?:  InkType;
 };
 
 export type DefectSeverity = {

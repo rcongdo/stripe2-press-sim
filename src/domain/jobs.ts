@@ -1,4 +1,4 @@
-import type { AniloxPreset, ChannelDef, JobPreset } from "./types";
+import type { AniloxPreset, ChannelDef, JobPreset, SettingRange } from "./types";
 
 export const aniloxPresets: readonly AniloxPreset[] = [
   { id: "ultra-fine",   label: "Ultra-fine — 1400 lpi / 1.8 BCM",   lineScreen: 1400, volume: 1.8 },
@@ -8,6 +8,10 @@ export const aniloxPresets: readonly AniloxPreset[] = [
   { id: "heavy",        label: "Heavy — 800 lpi / 4.5 BCM",          lineScreen:  800, volume: 4.5 },
   { id: "very-heavy",   label: "Very heavy — 700 lpi / 5.2 BCM",     lineScreen:  700, volume: 5.2 },
 ];
+
+export const UV_POWER_RANGE: SettingRange = {
+  min: 50, max: 500, step: 10, unit: "W/cm²", label: "UV power",
+};
 
 const SNACK_PROCESS_CHANNELS: ChannelDef[] = [
   { id: "C", name: "Cyan",    isProcess: true, displayColor: "#00bef0", screenAngle: 15, artworkZones: [], initiallyActive: true,  targetDensity: 1.4 },
@@ -88,6 +92,8 @@ export const snackPouchJob: JobPreset = {
       white:  { x:  0,   y:  0   },
     },
   },
+  defaultPressType: "ci",
+  defaultInkType: "water-based",
 };
 
 export const starterJob = snackPouchJob;
@@ -144,6 +150,8 @@ export const labelPrintJob: JobPreset = {
       K: { x:  0,   y:  0   },
     },
   },
+  defaultPressType: "inline",
+  defaultInkType: "water-based",
 };
 
 export const JOB_REGISTRY: readonly JobPreset[] = [snackPouchJob, labelPrintJob];
