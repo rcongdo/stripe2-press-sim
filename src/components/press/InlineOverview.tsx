@@ -26,10 +26,9 @@ const NIP_HALF    = 20;  // distance from station cx to each cylinder center
 const ANILOX_R    = 14;
 const FOUNTAIN_R  = 12;
 
-const DIP_Y       = WEB_Y + 50;  // bottom of the V-dip web path
-const ICON_Y      = DIP_Y + 18;  // center of dryer/UV icon (below web)
+// Dryer icons sit below the web between stations
+const ICON_Y      = WEB_Y + 50;
 
-const COL_W       = 40;  // ink pan top width
 const REEL_R      = 22;
 
 function healthColor(density: number, target: number): string {
@@ -61,17 +60,11 @@ function StationColumn({ cx, ch, outcome, selected, mode, t, onClick }: StationC
   const aniloxCy = WEB_Y + PLATE_R + ANILOX_R;
   const fontCy   = WEB_Y + PLATE_R + ANILOX_R * 2 + FOUNTAIN_R;
 
-  // Ink pan trapezoid points
-  const panTop    = fontCy + FOUNTAIN_R + 6;
-  const panBot    = panTop + 28;
-  const panHalfT  = COL_W / 2;
-  const panHalfB  = panHalfT - 8;
-  const panPts    = [
-    `${plateCx - panHalfT},${panTop}`,
-    `${plateCx + panHalfT},${panTop}`,
-    `${plateCx + panHalfB},${panBot}`,
-    `${plateCx - panHalfB},${panBot}`,
-  ].join(" ");
+  // Ink tray: rectangle with fountain roll partially submerged
+  const panTop   = fontCy;
+  const panBot   = fontCy + FOUNTAIN_R + 10;
+  const panLeft  = plateCx - FOUNTAIN_R - 8;
+  const panRight = plateCx + FOUNTAIN_R + 8;
 
   return (
     <g
@@ -96,11 +89,29 @@ function StationColumn({ cx, ch, outcome, selected, mode, t, onClick }: StationC
       {/* Anilox roll */}
       <circle cx={plateCx} cy={aniloxCy} r={ANILOX_R} fill={isActive ? "#2e2e4e" : "#222233"} stroke="#666" strokeWidth="1" />
 
-      {/* Fountain roll (partially in ink pan) */}
+      {/* Anilox doctor blade — short angled bar touching upper-right of anilox */}
+      <line
+        x1={plateCx + ANILOX_R * 0.6} y1={aniloxCy - ANILOX_R * 0.8}
+        x2={plateCx + ANILOX_R + 11}   y2={aniloxCy - ANILOX_R * 2.2}
+        stroke={isActive ? "#999" : "#555"} strokeWidth="1.5" strokeLinecap="round"
+      />
+
+      {/* Fountain roll — bottom half sits inside ink tray */}
       <circle cx={plateCx} cy={fontCy} r={FOUNTAIN_R} fill={isActive ? "#2e2e4e" : "#222233"} stroke="#555" strokeWidth="1" />
 
-      {/* Ink pan */}
-      <polygon points={panPts} fill={isActive ? "#1e1e3e" : "#181828"} stroke="#555" strokeWidth="1" />
+      {/* Ink tray */}
+      <rect
+        x={panLeft} y={panTop} width={panRight - panLeft} height={panBot - panTop}
+        fill={isActive ? "#1e1e3e" : "#181828"} stroke="#555" strokeWidth="1"
+      />
+      {/* Ink fill inside tray */}
+      {isActive && (
+        <rect
+          x={panLeft + 1} y={panTop + (panBot - panTop) * 0.45}
+          width={panRight - panLeft - 2} height={(panBot - panTop) * 0.55 - 1}
+          fill={color} fillOpacity="0.3"
+        />
+      )}
 
       {/* Channel label */}
       {isActive && (
@@ -175,18 +186,8 @@ export function InlineOverview({ job, settings, outcome, mode, selectedChannelId
 
   const rewindX = FIRST_X + nStations * PITCH;
 
-  // Build web path: from unwind, through each station nip, V-dips between, to rewind
-  let webPath = `M ${REEL_R + 8},${WEB_Y}`;
-  for (let i = 0; i < nStations; i++) {
-    const cx = FIRST_X + i * PITCH;
-    webPath += ` L ${cx},${WEB_Y}`;
-    if (i < nStations - 1) {
-      const midX = cx + PITCH / 2;
-      webPath += ` Q ${cx + PITCH * 0.25},${DIP_Y} ${midX},${DIP_Y}`;
-      webPath += ` Q ${cx + PITCH * 0.75},${DIP_Y} ${cx + PITCH},${WEB_Y}`;
-    }
-  }
-  webPath += ` L ${rewindX + REEL_R - 8},${WEB_Y}`;
+  // Straight horizontal web path through all station nips
+  const webPath = `M ${REEL_R + 8},${WEB_Y} L ${rewindX + REEL_R - 8},${WEB_Y}`;
 
   return (
     <div data-testid="press-overview" style={{ position: "relative" }}>
@@ -207,7 +208,7 @@ export function InlineOverview({ job, settings, outcome, mode, selectedChannelId
       >
         <rect x="0" y="0" width={SVG_W} height={SVG_H} fill="#1a1a2e" rx="8" />
 
-        {/* Web path */}
+        {/* Web path — straight horizontal */}
         <path d={webPath} fill="none" stroke="#ccc" strokeWidth="3" opacity="0.7" />
 
         {/* Unwind reel */}
