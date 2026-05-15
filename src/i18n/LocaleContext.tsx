@@ -2,13 +2,16 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 import type { Lang, Locale } from "./types";
 import { en } from "./en";
 import { es } from "./es";
+import { de } from "./de";
+import { it } from "./it";
 
-const LOCALES: Record<Lang, Locale> = { en, es };
+const LOCALES: Record<Lang, Locale> = { en, es, de, it };
 const STORAGE_KEY = "flexo-sim-lang";
+const VALID_LANGS = new Set<string>(["en", "es", "de", "it"]);
 
 function getSavedLang(): Lang {
   const saved = localStorage.getItem(STORAGE_KEY);
-  return saved === "es" ? "es" : "en";
+  return VALID_LANGS.has(saved ?? "") ? (saved as Lang) : "en";
 }
 
 type LocaleContextValue = { t: Locale; lang: Lang; setLang: (lang: Lang) => void };

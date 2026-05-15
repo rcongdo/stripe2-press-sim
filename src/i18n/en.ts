@@ -150,5 +150,5 @@ export const en: Locale = {
 
   readingPdf: "Reading PDF…",
   languageLabel: "Language",
-  languageNames: { en: "English", es: "Español" },
+  languageNames: { en: "English", es: "Español", de: "Deutsch", it: "Italiano" },
 };

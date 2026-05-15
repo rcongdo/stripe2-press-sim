@@ -233,6 +233,8 @@ export default function App() {
         >
           <option value="en">{t.languageNames.en}</option>
           <option value="es">{t.languageNames.es}</option>
+          <option value="de">{t.languageNames.de}</option>
+          <option value="it">{t.languageNames.it}</option>
         </select>
       </footer>
       <ScoreModal score={score} onClose={() => setScore(null)} onReset={resetJob} />

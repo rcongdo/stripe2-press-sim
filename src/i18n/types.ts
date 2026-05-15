@@ -1,4 +1,4 @@
-export type Lang = "en" | "es";
+export type Lang = "en" | "es" | "de" | "it";
 
 export type Locale = {
   appTitle: string;
@@ -95,5 +95,5 @@ export type Locale = {
 
   readingPdf: string;
   languageLabel: string;
-  languageNames: { en: string; es: string };
+  languageNames: { en: string; es: string; de: string; it: string };
 };
