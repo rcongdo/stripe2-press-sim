@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ChannelId, JobPreset, PressSettings, SimulationOutcome } from "../domain/types";
-import { PressOverview } from "./press/PressOverview";
+import { CIOverview } from "./press/CIOverview";
 import { StationDetail } from "./press/StationDetail";
 
 export type PressMode = "operate" | "learn";
@@ -52,7 +52,7 @@ export function PressModel({ job, settings, outcome, selectedChannelId, onStatio
       </div>
 
       {view.type === "overview" ? (
-        <PressOverview
+        <CIOverview
           job={job}
           settings={settings}
           outcome={outcome}

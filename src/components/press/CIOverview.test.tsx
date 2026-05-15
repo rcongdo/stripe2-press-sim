@@ -1,9 +1,9 @@
-// src/components/press/PressOverview.test.tsx
+// src/components/press/CIOverview.test.tsx
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { snackPouchJob } from "../../domain/jobs";
 import { createInitialSettings } from "../../domain/settings";
-import { PressOverview } from "./PressOverview";
+import { CIOverview } from "./CIOverview";
 
 function makeProps(overrides = {}) {
   const settings = createInitialSettings(snackPouchJob);
@@ -26,14 +26,14 @@ function makeProps(overrides = {}) {
   };
 }
 
-describe("PressOverview", () => {
+describe("CIOverview", () => {
   it("renders an SVG element", () => {
-    const { container } = render(<PressOverview {...makeProps()} />);
+    const { container } = render(<CIOverview {...makeProps()} />);
     expect(container.querySelector("svg")).toBeInTheDocument();
   });
 
   it("renders one station group per active channel", () => {
-    render(<PressOverview {...makeProps()} />);
+    render(<CIOverview {...makeProps()} />);
     expect(screen.getByTestId("station-C")).toBeInTheDocument();
     expect(screen.getByTestId("station-M")).toBeInTheDocument();
     expect(screen.getByTestId("station-Y")).toBeInTheDocument();
@@ -42,25 +42,25 @@ describe("PressOverview", () => {
 
   it("calls onStationClick with the correct channelId when a station is clicked", () => {
     const onStationClick = vi.fn();
-    render(<PressOverview {...makeProps({ onStationClick })} />);
+    render(<CIOverview {...makeProps({ onStationClick })} />);
     fireEvent.click(screen.getByTestId("station-M"));
     expect(onStationClick).toHaveBeenCalledWith("M", expect.any(Number));
   });
 
   it("highlights the selected station", () => {
-    render(<PressOverview {...makeProps({ selectedChannelId: "K" })} />);
+    render(<CIOverview {...makeProps({ selectedChannelId: "K" })} />);
     const station = screen.getByTestId("station-K");
     expect(station).toHaveAttribute("data-selected", "true");
   });
 
   it("shows component labels in learn mode", () => {
-    render(<PressOverview {...makeProps({ mode: "learn" })} />);
+    render(<CIOverview {...makeProps({ mode: "learn" })} />);
     expect(screen.getByText("Central Impression Drum")).toBeInTheDocument();
     expect(screen.getAllByText("Anilox Roll").length).toBeGreaterThan(0);
   });
 
   it("does not show component labels in operate mode", () => {
-    render(<PressOverview {...makeProps({ mode: "operate" })} />);
+    render(<CIOverview {...makeProps({ mode: "operate" })} />);
     expect(screen.queryByText("Central Impression Drum")).not.toBeInTheDocument();
   });
 });

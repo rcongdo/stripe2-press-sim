@@ -53,7 +53,7 @@ function tensionNorm(t: number, min: number, max: number): number {
 
 type TooltipState = { key: string } | null;
 
-export function PressOverview({ job, settings, outcome, mode, selectedChannelId, onStationClick }: Props) {
+export function CIOverview({ job, settings, outcome, mode, selectedChannelId, onStationClick }: Props) {
   const [tooltip, setTooltip] = useState<TooltipState>(null);
   const activeChannels = job.channels.filter(ch => ch.id in settings.inkChannels);
 
