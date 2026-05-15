@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ChannelId, JobPreset, PressSettings, SimulationOutcome } from "../../domain/types";
 import type { PressMode } from "../PressModel";
-import { PRESS_EDUCATION } from "./pressEducation";
+import { useLocale } from "../../i18n/LocaleContext";
 
 type Props = {
   job: JobPreset;
@@ -56,6 +56,7 @@ type TooltipState = { key: string } | null;
 export function CIOverview({ job, settings, outcome, mode, selectedChannelId, onStationClick }: Props) {
   const [tooltip, setTooltip] = useState<TooltipState>(null);
   const activeChannels = job.channels.filter(ch => ch.id in settings.inkChannels);
+  const { t } = useLocale();
 
   const tn = tensionNorm(settings.webTension, job.ranges.webTension.min, job.ranges.webTension.max);
   const sag = (1 - tn) * 12;
@@ -77,14 +78,14 @@ export function CIOverview({ job, settings, outcome, mode, selectedChannelId, on
 
   return (
     <div className="press-overview" data-testid="press-overview" style={{ position: "relative" }}>
-      {tooltip && PRESS_EDUCATION[tooltip.key] && (
+      {tooltip && t.education[tooltip.key as keyof typeof t.education] && (
         <div
           className="learn-tooltip"
           style={{ position: "static", marginBottom: 8, pointerEvents: "auto", cursor: "pointer" }}
           onClick={() => setTooltip(null)}
         >
-          <div className="learn-tooltip__name">{PRESS_EDUCATION[tooltip.key].name}</div>
-          {PRESS_EDUCATION[tooltip.key].description}
+          <div className="learn-tooltip__name">{t.education[tooltip.key as keyof typeof t.education].name}</div>
+          {t.education[tooltip.key as keyof typeof t.education].description}
         </div>
       )}
       <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} xmlns="http://www.w3.org/2000/svg">
@@ -114,7 +115,7 @@ export function CIOverview({ job, settings, outcome, mode, selectedChannelId, on
             style={{ cursor: "pointer" }}
             onClick={() => handleLabel("ciDrum")}
           >
-            Central Impression Drum
+            {t.education.ciDrum.name}
           </text>
         )}
 
@@ -194,7 +195,7 @@ export function CIOverview({ job, settings, outcome, mode, selectedChannelId, on
                   textAnchor="middle" fontSize="8" fill="#0f6b78" fontWeight="700"
                   onClick={e => { e.stopPropagation(); handleLabel("aniloxRoll"); }}
                 >
-                  Anilox Roll
+                  {t.education.aniloxRoll.name}
                 </text>
               )}
             </g>

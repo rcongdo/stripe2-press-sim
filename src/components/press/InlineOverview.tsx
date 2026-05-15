@@ -1,4 +1,5 @@
-import { PRESS_EDUCATION } from "./pressEducation";
+import { useState } from "react";
+import { useLocale } from "../../i18n/LocaleContext";
 import type { ChannelId, InkType, JobPreset, PressSettings, SimulationOutcome } from "../../domain/types";
 import type { PressMode } from "../PressModel";
 
@@ -44,10 +45,11 @@ type StationColumnProps = {
   outcome: SimulationOutcome;
   selected: boolean;
   mode: PressMode;
+  t: ReturnType<typeof useLocale>["t"];
   onClick: () => void;
 };
 
-function StationColumn({ cx, ch, outcome, selected, mode, onClick }: StationColumnProps) {
+function StationColumn({ cx, ch, outcome, selected, mode, t, onClick }: StationColumnProps) {
   const isActive = ch !== null;
   const color = isActive ? ch!.displayColor : "#444";
   const ringColor = isActive
@@ -110,19 +112,19 @@ function StationColumn({ cx, ch, outcome, selected, mode, onClick }: StationColu
       {/* Learn-mode labels */}
       {mode === "learn" && isActive && (
         <>
-          <text x={impCx + IMP_R + 4} y={WEB_Y - 2} fill="#ccc" fontSize="8">{PRESS_EDUCATION.impressionCylinder.name}</text>
-          <text x={plateCx - PLATE_R - 4} y={WEB_Y - 2} fill="#ccc" fontSize="8" textAnchor="end">{PRESS_EDUCATION.plateCylinder.name}</text>
-          <text x={plateCx - ANILOX_R - 4} y={aniloxCy + 3} fill="#ccc" fontSize="8" textAnchor="end">{PRESS_EDUCATION.aniloxRoll.name}</text>
-          <text x={plateCx - FOUNTAIN_R - 4} y={fontCy + 3} fill="#ccc" fontSize="8" textAnchor="end">{PRESS_EDUCATION.fountainRoll.name}</text>
+          <text x={impCx + IMP_R + 4} y={WEB_Y - 2} fill="#ccc" fontSize="8">{t.education.impressionCylinder.name}</text>
+          <text x={plateCx - PLATE_R - 4} y={WEB_Y - 2} fill="#ccc" fontSize="8" textAnchor="end">{t.education.plateCylinder.name}</text>
+          <text x={plateCx - ANILOX_R - 4} y={aniloxCy + 3} fill="#ccc" fontSize="8" textAnchor="end">{t.education.aniloxRoll.name}</text>
+          <text x={plateCx - FOUNTAIN_R - 4} y={fontCy + 3} fill="#ccc" fontSize="8" textAnchor="end">{t.education.fountainRoll.name}</text>
         </>
       )}
     </g>
   );
 }
 
-type DryerIconProps = { x: number; y: number; inkType: InkType; mode: PressMode };
+type DryerIconProps = { x: number; y: number; inkType: InkType; mode: PressMode; onLearnClick?: () => void };
 
-function DryerIcon({ x, y, inkType, mode }: DryerIconProps) {
+function DryerIcon({ x, y, inkType, mode, onLearnClick }: DryerIconProps) {
   const isUv = inkType === "uv";
   const label = isUv ? "UV" : "Dryer";
   return (
@@ -144,13 +146,21 @@ function DryerIcon({ x, y, inkType, mode }: DryerIconProps) {
         </>
       )}
       {mode === "learn" && (
-        <text x={x} y={y + 16} textAnchor="middle" fill="#999" fontSize="8">{label}</text>
+        <text
+          x={x} y={y + 16} textAnchor="middle" fill="#0f6b78" fontSize="8" fontWeight="700"
+          style={{ cursor: "pointer" }}
+          onClick={onLearnClick}
+        >
+          {label}
+        </text>
       )}
     </g>
   );
 }
 
 export function InlineOverview({ job, settings, outcome, mode, selectedChannelId, inkType, onStationClick }: Props) {
+  const [dryerTooltip, setDryerTooltip] = useState(false);
+  const { t } = useLocale();
   const activeChannels = job.channels.filter(ch => ch.id in settings.inkChannels);
   const nStations = Math.min(activeChannels.length, MAX_SLOTS);
 
@@ -179,62 +189,75 @@ export function InlineOverview({ job, settings, outcome, mode, selectedChannelId
   webPath += ` L ${rewindX + REEL_R - 8},${WEB_Y}`;
 
   return (
-    <svg
-      data-testid="press-overview"
-      viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-      width="100%"
-      style={{ display: "block" }}
-    >
-      <rect x="0" y="0" width={SVG_W} height={SVG_H} fill="#1a1a2e" rx="8" />
-
-      {/* Web path */}
-      <path d={webPath} fill="none" stroke="#ccc" strokeWidth="3" opacity="0.7" />
-
-      {/* Unwind reel */}
-      <circle cx={REEL_R} cy={WEB_Y} r={REEL_R} fill="#2a2a4a" stroke="#666" strokeWidth="1.5" />
-      <circle cx={REEL_R} cy={WEB_Y} r={8} fill="#1a1a2e" />
-      {mode === "learn" && (
-        <text x={REEL_R} y={WEB_Y + REEL_R + 14} textAnchor="middle" fill="#999" fontSize="8">Unwind</text>
+    <div data-testid="press-overview" style={{ position: "relative" }}>
+      {dryerTooltip && (
+        <div
+          className="learn-tooltip"
+          style={{ position: "static", marginBottom: 8, pointerEvents: "auto", cursor: "pointer" }}
+          onClick={() => setDryerTooltip(false)}
+        >
+          <div className="learn-tooltip__name">{t.education.interStationDryer.name}</div>
+          {t.education.interStationDryer.description}
+        </div>
       )}
+      <svg
+        viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+        width="100%"
+        style={{ display: "block" }}
+      >
+        <rect x="0" y="0" width={SVG_W} height={SVG_H} fill="#1a1a2e" rx="8" />
 
-      {/* Station columns */}
-      {Array.from({ length: MAX_SLOTS }, (_, i) => {
-        const cx = FIRST_X + i * PITCH;
-        const ch = i < nStations ? activeChannels[i] : null;
-        return (
-          <StationColumn
-            key={i}
-            cx={cx}
-            ch={ch}
-            outcome={outcome}
-            selected={ch?.id === selectedChannelId}
-            mode={mode}
-            onClick={() => ch && onStationClick(ch.id)}
-          />
-        );
-      })}
+        {/* Web path */}
+        <path d={webPath} fill="none" stroke="#ccc" strokeWidth="3" opacity="0.7" />
 
-      {/* Inter-station dryer/UV icons */}
-      {Array.from({ length: nStations - 1 }, (_, i) => {
-        const midX = FIRST_X + i * PITCH + PITCH / 2;
-        return (
-          <DryerIcon key={i} x={midX} y={ICON_Y} inkType={inkType} mode={mode} />
-        );
-      })}
+        {/* Unwind reel */}
+        <circle cx={REEL_R} cy={WEB_Y} r={REEL_R} fill="#2a2a4a" stroke="#666" strokeWidth="1.5" />
+        <circle cx={REEL_R} cy={WEB_Y} r={8} fill="#1a1a2e" />
+        {mode === "learn" && (
+          <text x={REEL_R} y={WEB_Y + REEL_R + 14} textAnchor="middle" fill="#999" fontSize="8">Unwind</text>
+        )}
 
-      {/* Rewind reel */}
-      <circle cx={rewindX} cy={WEB_Y} r={REEL_R} fill="#2a2a4a" stroke="#666" strokeWidth="1.5" />
-      <circle cx={rewindX} cy={WEB_Y} r={8} fill="#1a1a2e" />
-      {mode === "learn" && (
-        <text x={rewindX} y={WEB_Y + REEL_R + 14} textAnchor="middle" fill="#999" fontSize="8">Rewind</text>
-      )}
+        {/* Station columns */}
+        {Array.from({ length: MAX_SLOTS }, (_, i) => {
+          const cx = FIRST_X + i * PITCH;
+          const ch = i < nStations ? activeChannels[i] : null;
+          return (
+            <StationColumn
+              key={i}
+              cx={cx}
+              ch={ch}
+              outcome={outcome}
+              selected={ch?.id === selectedChannelId}
+              mode={mode}
+              t={t}
+              onClick={() => ch && onStationClick(ch.id)}
+            />
+          );
+        })}
 
-      {/* Inline press learn label */}
-      {mode === "learn" && (
-        <text x={SVG_W / 2} y={SVG_H - 10} textAnchor="middle" fill="#888" fontSize="9">
-          {PRESS_EDUCATION.inlinePress.name}
-        </text>
-      )}
-    </svg>
+        {/* Inter-station dryer/UV icons */}
+        {Array.from({ length: nStations - 1 }, (_, i) => {
+          const midX = FIRST_X + i * PITCH + PITCH / 2;
+          return (
+            <DryerIcon key={i} x={midX} y={ICON_Y} inkType={inkType} mode={mode}
+              onLearnClick={() => setDryerTooltip(prev => !prev)} />
+          );
+        })}
+
+        {/* Rewind reel */}
+        <circle cx={rewindX} cy={WEB_Y} r={REEL_R} fill="#2a2a4a" stroke="#666" strokeWidth="1.5" />
+        <circle cx={rewindX} cy={WEB_Y} r={8} fill="#1a1a2e" />
+        {mode === "learn" && (
+          <text x={rewindX} y={WEB_Y + REEL_R + 14} textAnchor="middle" fill="#999" fontSize="8">Rewind</text>
+        )}
+
+        {/* Inline press learn label */}
+        {mode === "learn" && (
+          <text x={SVG_W / 2} y={SVG_H - 10} textAnchor="middle" fill="#888" fontSize="9">
+            {t.education.inlinePress.name}
+          </text>
+        )}
+      </svg>
+    </div>
   );
 }

@@ -1,7 +1,9 @@
+import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { snackPouchJob } from "../../domain/jobs";
 import { createInitialSettings } from "../../domain/settings";
+import { LocaleProvider } from "../../i18n/LocaleContext";
 import { InlineOverview } from "./InlineOverview";
 
 function makeProps(overrides = {}) {
@@ -26,14 +28,18 @@ function makeProps(overrides = {}) {
   };
 }
 
+function wrap(ui: React.ReactElement) {
+  return render(<LocaleProvider>{ui}</LocaleProvider>);
+}
+
 describe("InlineOverview", () => {
   it("renders an SVG element with data-testid=press-overview", () => {
-    render(<InlineOverview {...makeProps()} />);
+    wrap(<InlineOverview {...makeProps()} />);
     expect(screen.getByTestId("press-overview")).toBeInTheDocument();
   });
 
   it("renders one station group per active channel", () => {
-    render(<InlineOverview {...makeProps()} />);
+    wrap(<InlineOverview {...makeProps()} />);
     expect(screen.getByTestId("station-C")).toBeInTheDocument();
     expect(screen.getByTestId("station-M")).toBeInTheDocument();
     expect(screen.getByTestId("station-Y")).toBeInTheDocument();
@@ -42,23 +48,23 @@ describe("InlineOverview", () => {
 
   it("calls onStationClick with channelId when a station is clicked", () => {
     const onStationClick = vi.fn();
-    render(<InlineOverview {...makeProps({ onStationClick })} />);
+    wrap(<InlineOverview {...makeProps({ onStationClick })} />);
     fireEvent.click(screen.getByTestId("station-M"));
     expect(onStationClick).toHaveBeenCalledWith("M");
   });
 
   it("marks the selected station", () => {
-    render(<InlineOverview {...makeProps({ selectedChannelId: "K" })} />);
+    wrap(<InlineOverview {...makeProps({ selectedChannelId: "K" })} />);
     expect(screen.getByTestId("station-K")).toHaveAttribute("data-selected", "true");
   });
 
   it("shows inter-station dryer labels in learn mode with water-based ink", () => {
-    render(<InlineOverview {...makeProps({ mode: "learn" })} />);
+    wrap(<InlineOverview {...makeProps({ mode: "learn" })} />);
     expect(screen.getAllByText("Dryer").length).toBeGreaterThan(0);
   });
 
   it("shows UV labels in learn mode with UV ink", () => {
-    render(<InlineOverview {...makeProps({ mode: "learn", inkType: "uv" })} />);
+    wrap(<InlineOverview {...makeProps({ mode: "learn", inkType: "uv" })} />);
     expect(screen.getAllByText("UV").length).toBeGreaterThan(0);
     expect(screen.queryByText("Dryer")).not.toBeInTheDocument();
   });
