@@ -1,6 +1,6 @@
 // src/components/press/StationDetail.tsx
-import { useEffect, useRef } from "react";
-import type { ChannelDef, JobPreset, PressSettings, SimulationOutcome } from "../../domain/types";
+import { useEffect, useRef, useState } from "react";
+import type { ChannelDef, JobPreset, PressSettings, PressType, SimulationOutcome } from "../../domain/types";
 import type { PressMode } from "../PressModel";
 import { useLocale } from "../../i18n/LocaleContext";
 
@@ -14,6 +14,7 @@ type Props = {
   stationNumber: number;
   stationCount: number;
   channelName: string;
+  pressType?: PressType;
   onPrevStation: () => void;
   onNextStation: () => void;
   onBack: () => void;
@@ -70,7 +71,7 @@ function drawFrame(
   const strength     = inkSettings?.strength     ?? 100;
 
   // Background
-  ctx.fillStyle = "#f4f7f9";
+  ctx.fillStyle = "#1a1a2e";
   ctx.fillRect(0, 0, SD_W * s, SD_H * s);
 
   // ── Rotate entire scene so "right" aligns with the station's radial direction ──
@@ -89,9 +90,9 @@ function drawFrame(
   // ── CI drum (large circle, left) ────────────────────────────────────────────
   ctx.beginPath();
   ctx.arc(-CI_DIST * s, 0, CI_R * s, 0, Math.PI * 2);
-  ctx.fillStyle = "#dde4ea";
+  ctx.fillStyle = "#2a2a4a";
   ctx.fill();
-  ctx.strokeStyle = "#697784";
+  ctx.strokeStyle = "#555";
   ctx.lineWidth = 2 * s;
   ctx.stroke();
 
@@ -104,7 +105,7 @@ function drawFrame(
   }
   ctx.beginPath();
   ctx.arc(0, 0, PLATE_R * s, 0, Math.PI * 2);
-  ctx.fillStyle = hexToRgba(ch.displayColor, 0.2);
+  ctx.fillStyle = hexToRgba(ch.displayColor, 0.3);
   ctx.fill();
   ctx.strokeStyle = ch.displayColor;
   ctx.lineWidth = 2 * s;
@@ -123,9 +124,9 @@ function drawFrame(
   // ── Anilox roll ──────────────────────────────────────────────────────────────
   ctx.beginPath();
   ctx.arc(ANILOX_DIST * s, 0, ANILOX_R * s, 0, Math.PI * 2);
-  ctx.fillStyle = "#e8edf1";
+  ctx.fillStyle = "#2e2e4e";
   ctx.fill();
-  ctx.strokeStyle = "#697784";
+  ctx.strokeStyle = "#666";
   ctx.lineWidth = 1.5 * s;
   ctx.stroke();
 
@@ -152,8 +153,8 @@ function drawFrame(
   const chamberX = (ANILOX_DIST + ANILOX_R + CHAMBER_GAP) * s;
   const chamberFill = 0.2 + (strength / 120) * 0.6;
 
-  ctx.fillStyle = "rgba(245,248,250,0.95)";
-  ctx.strokeStyle = "#697784";
+  ctx.fillStyle = "rgba(20,20,50,0.95)";
+  ctx.strokeStyle = "#666";
   ctx.lineWidth = 1.5 * s;
   ctx.beginPath();
   ctx.roundRect(chamberX, -CHAMBER_HH * s, CHAMBER_W * s, CHAMBER_HH * 2 * s, 3 * s);
@@ -184,7 +185,7 @@ function drawFrame(
 
   // ── Doctor blade (trailing, anilox → lower) ──────────────────────────────────
   const doctorWarning = impression > 80 || viscosity > 38;
-  ctx.strokeStyle = (doctorWarning && mode === "operate") ? "#e08c00" : "#455a64";
+  ctx.strokeStyle = (doctorWarning && mode === "operate") ? "#e08c00" : "#888";
   ctx.lineWidth = 2.5 * s;
   ctx.beginPath();
   ctx.moveTo(chamberX, CHAMBER_HH * s);
@@ -193,7 +194,7 @@ function drawFrame(
 
   // ── Containment blade (leading, anilox → upper) ──────────────────────────────
   const containmentWarning = mode === "operate" && dryingRisk > 65;
-  ctx.strokeStyle = containmentWarning ? "#e08c00" : "#455a64";
+  ctx.strokeStyle = containmentWarning ? "#e08c00" : "#888";
   ctx.lineWidth = 2.5 * s;
   ctx.beginPath();
   ctx.moveTo(chamberX, -CHAMBER_HH * s);
@@ -203,6 +204,172 @@ function drawFrame(
   ctx.restore(); // end scene rotation
 }
 
+// Inline press station layout constants (canvas coords, scale=1 applied via SD_SCALE)
+const INL_NIP_Y    = 340;   // web/nip level — near bottom
+const INL_CX       = SD_W / 2;
+const INL_PLATE_R  = 46;
+const INL_IMP_R    = 46;
+const INL_NIP_HALF = 50;    // px between station center and each cylinder center
+const INL_ANILOX_R = 34;
+const INL_FONT_R   = 26;
+
+function drawInlineFrame(
+  ctx: CanvasRenderingContext2D,
+  ch: ChannelDef,
+  inkSettings: { aniloxVolume: number; viscosity: number; strength: number; impression: number } | undefined,
+  aniloxAngle: number,
+  dripT: number,
+  mode: PressMode,
+  dryingRisk: number,
+  plateLabel: string,
+) {
+  const s = SD_SCALE;
+  ctx.clearRect(0, 0, SD_W * s, SD_H * s);
+
+  const impression   = inkSettings?.impression   ?? 54;
+  const aniloxVolume = inkSettings?.aniloxVolume ?? 3.2;
+  const viscosity    = inkSettings?.viscosity    ?? 28;
+  const strength     = inkSettings?.strength     ?? 100;
+
+  // Background
+  ctx.fillStyle = "#1a1a2e";
+  ctx.fillRect(0, 0, SD_W * s, SD_H * s);
+
+  const plateCx  = INL_CX - INL_NIP_HALF;
+  const impCx    = INL_CX + INL_NIP_HALF;
+  const nipY     = INL_NIP_Y;
+  const aniloxCy = nipY - INL_PLATE_R - INL_ANILOX_R;
+  const fontCy   = nipY - INL_PLATE_R - INL_ANILOX_R * 2 - INL_FONT_R;
+
+  // Ink tray
+  const panH    = INL_FONT_R + 14;
+  const panW    = INL_FONT_R * 2 + 20;
+  const panLeft = plateCx - panW / 2;
+  const panBot  = fontCy;
+  const panTop  = fontCy - panH;
+
+  // ── Impression cylinder ──────────────────────────────────────────────────────
+  if (impression > 80) {
+    ctx.beginPath();
+    ctx.arc(impCx * s, nipY * s, (INL_IMP_R + 3) * s, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(214,59,59,0.2)";
+    ctx.fill();
+  }
+  ctx.beginPath();
+  ctx.arc(impCx * s, nipY * s, INL_IMP_R * s, 0, Math.PI * 2);
+  ctx.fillStyle = "#3a3a5a";
+  ctx.fill();
+  ctx.strokeStyle = "#666";
+  ctx.lineWidth = 2 * s;
+  ctx.stroke();
+
+  // ── Plate cylinder ───────────────────────────────────────────────────────────
+  ctx.beginPath();
+  ctx.arc(plateCx * s, nipY * s, INL_PLATE_R * s, 0, Math.PI * 2);
+  ctx.fillStyle = hexToRgba(ch.displayColor, 0.3);
+  ctx.fill();
+  ctx.strokeStyle = ch.displayColor;
+  ctx.lineWidth = 2 * s;
+  ctx.stroke();
+
+  // Plate label
+  ctx.fillStyle = ch.displayColor;
+  ctx.font = `bold ${10 * s}px Inter, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(plateLabel, plateCx * s, nipY * s);
+
+  // ── Anilox roll ──────────────────────────────────────────────────────────────
+  ctx.beginPath();
+  ctx.arc(plateCx * s, aniloxCy * s, INL_ANILOX_R * s, 0, Math.PI * 2);
+  ctx.fillStyle = "#2e2e4e";
+  ctx.fill();
+  ctx.strokeStyle = "#666";
+  ctx.lineWidth = 1.5 * s;
+  ctx.stroke();
+
+  // Cell texture
+  const cellAlpha = 0.3 + (aniloxVolume / 5.5) * 0.6;
+  ctx.save();
+  ctx.translate(plateCx * s, aniloxCy * s);
+  ctx.rotate((aniloxAngle * Math.PI) / 180);
+  for (let row = -2; row <= 2; row++) {
+    for (let col = -2; col <= 2; col++) {
+      const cx2 = col * 9 * s;
+      const cy2 = row * 9 * s;
+      if (Math.sqrt(cx2 * cx2 + cy2 * cy2) < (INL_ANILOX_R - 5) * s) {
+        ctx.beginPath();
+        ctx.arc(cx2, cy2, 2.2 * s, 0, Math.PI * 2);
+        ctx.fillStyle = hexToRgba(ch.displayColor, cellAlpha);
+        ctx.fill();
+      }
+    }
+  }
+  ctx.restore();
+
+  // ── Doctor blade (lower-right of anilox, angling toward plate) ──────────────
+  const doctorWarning = impression > 80 || viscosity > 38;
+  ctx.strokeStyle = (doctorWarning && mode === "operate") ? "#e08c00" : "#888";
+  ctx.lineWidth = 2.5 * s;
+  ctx.beginPath();
+  ctx.moveTo((plateCx + INL_ANILOX_R * 0.65) * s, (aniloxCy + INL_ANILOX_R * 0.75) * s);
+  ctx.lineTo((plateCx + INL_ANILOX_R + 22) * s,   (aniloxCy + INL_ANILOX_R * 2.4) * s);
+  ctx.stroke();
+
+  // ── Fountain roll ────────────────────────────────────────────────────────────
+  ctx.beginPath();
+  ctx.arc(plateCx * s, fontCy * s, INL_FONT_R * s, 0, Math.PI * 2);
+  ctx.fillStyle = "#2e2e4e";
+  ctx.fill();
+  ctx.strokeStyle = "#555";
+  ctx.lineWidth = 1.5 * s;
+  ctx.stroke();
+
+  // ── Ink tray ─────────────────────────────────────────────────────────────────
+  ctx.fillStyle = "#1e1e3e";
+  ctx.strokeStyle = "#555";
+  ctx.lineWidth = 1.5 * s;
+  ctx.beginPath();
+  ctx.rect(panLeft * s, panTop * s, panW * s, panH * s);
+  ctx.fill();
+  ctx.stroke();
+
+  // Ink fill (bottom portion)
+  const fillH = panH * 0.55;
+  ctx.fillStyle = hexToRgba(ch.displayColor, 0.3);
+  ctx.fillRect(
+    (panLeft + 1) * s, (panBot - fillH) * s,
+    (panW - 2) * s, (fillH - 1) * s,
+  );
+
+  // ── Ink drip (from tray toward anilox surface) ────────────────────────────
+  const dripRadius = Math.max(2, 5 - viscosity * 0.06);
+  const dripStartY = fontCy - INL_FONT_R;
+  const dripEndY   = aniloxCy + INL_ANILOX_R;
+  const dripY = dripStartY + (dripEndY - dripStartY) * dripT;
+  ctx.beginPath();
+  ctx.arc(plateCx * s, dripY * s, dripRadius * s, 0, Math.PI * 2);
+  ctx.fillStyle = hexToRgba(ch.displayColor, 0.8);
+  ctx.fill();
+
+  // ── Web line (horizontal at nip level) ──────────────────────────────────────
+  ctx.strokeStyle = "#ccc";
+  ctx.lineWidth = 4 * s;
+  ctx.globalAlpha = 0.6;
+  ctx.beginPath();
+  ctx.moveTo(0, nipY * s);
+  ctx.lineTo(SD_W * s, nipY * s);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Strength fill indicator in anilox (subtle shade variation)
+  const chamberFill = 0.15 + (strength / 120) * 0.4;
+  ctx.fillStyle = hexToRgba(ch.displayColor, chamberFill);
+  ctx.beginPath();
+  ctx.arc(plateCx * s, aniloxCy * s, (INL_ANILOX_R - 4) * s, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 type CalloutDef = {
   key: string;
   label: string;
@@ -210,7 +377,7 @@ type CalloutDef = {
   y: number;
 };
 
-const LEARN_LABELS: { key: string; educationKey: string; x: number; y: number }[] = [
+const LEARN_LABELS_CI: { key: string; educationKey: string; x: number; y: number }[] = [
   { key: "inkChamber",       educationKey: "inkChamber",       x: 310, y: 180 },
   { key: "doctorBlade",      educationKey: "doctorBlade",      x: 310, y: 260 },
   { key: "containmentBlade", educationKey: "containmentBlade", x: 20,  y: 180 },
@@ -219,14 +386,24 @@ const LEARN_LABELS: { key: string; educationKey: string; x: number; y: number }[
   { key: "ciDrum",           educationKey: "ciDrum",           x: 20,  y: 370 },
 ];
 
-export function StationDetail({ job, settings, outcome, mode, channelId, stationAngle, stationNumber, stationCount, channelName, onPrevStation, onNextStation, onBack }: Props) {
+const LEARN_LABELS_INLINE: { key: string; educationKey: string; x: number; y: number }[] = [
+  { key: "fountainRoll",      educationKey: "fountainRoll",      x: 280, y: 30  },
+  { key: "aniloxRoll",        educationKey: "aniloxRoll",        x: 280, y: 120 },
+  { key: "doctorBlade",       educationKey: "doctorBlade",       x: 280, y: 200 },
+  { key: "plateCylinder",     educationKey: "plateCylinder",     x: 20,  y: 300 },
+  { key: "impressionCylinder",educationKey: "impressionCylinder",x: 280, y: 300 },
+];
+
+export function StationDetail({ job, settings, outcome, mode, channelId, stationAngle, stationNumber, stationCount, channelName, pressType = "ci", onPrevStation, onNextStation, onBack }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef(0);
   const aniloxAngleRef = useRef(0);
   const dripTRef = useRef(0);
+  const [learnHover, setLearnHover] = useState<string | null>(null);
 
   const ch = job.channels.find(c => c.id === channelId) ?? job.channels[0];
   const inkSettings = settings.inkChannels[channelId];
+  const learnLabels = pressType === "inline" ? LEARN_LABELS_INLINE : LEARN_LABELS_CI;
 
   const { t } = useLocale();
 
@@ -249,23 +426,36 @@ export function StationDetail({ job, settings, outcome, mode, channelId, station
     function tick() {
       dripTRef.current = (dripTRef.current + dripSpeed) % 1;
       aniloxAngleRef.current = (aniloxAngleRef.current + 0.6) % 360;
-      drawFrame(
-        ctx!,
-        ch,
-        inkSettings,
-        stationAngle,
-        aniloxAngleRef.current,
-        dripTRef.current,
-        mode,
-        outcome.dryingRisk,
-        t.stationLabels.plate,
-      );
+      if (pressType === "inline") {
+        drawInlineFrame(
+          ctx!,
+          ch,
+          inkSettings,
+          aniloxAngleRef.current,
+          dripTRef.current,
+          mode,
+          outcome.dryingRisk,
+          t.stationLabels.plate,
+        );
+      } else {
+        drawFrame(
+          ctx!,
+          ch,
+          inkSettings,
+          stationAngle,
+          aniloxAngleRef.current,
+          dripTRef.current,
+          mode,
+          outcome.dryingRisk,
+          t.stationLabels.plate,
+        );
+      }
       frameRef.current = requestAnimationFrame(tick);
     }
 
     frameRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frameRef.current);
-  }, [ch, inkSettings, stationAngle, mode, outcome.dryingRisk, t]);
+  }, [ch, inkSettings, stationAngle, pressType, mode, outcome.dryingRisk, t]);
 
   return (
     <div className="station-detail" data-testid="station-detail" style={{ position: "relative" }}>
@@ -310,19 +500,23 @@ export function StationDetail({ job, settings, outcome, mode, channelId, station
           );
         })}
 
-        {mode === "learn" && LEARN_LABELS.map(l => (
-          <div
-            key={l.key}
-            data-testid={`learn-label-${l.key}`}
-            className="station-callout station-callout--learn"
-            style={{ top: l.y, left: l.x }}
-          >
-            <span className="callout-name">
-              {t.education[l.educationKey as keyof typeof t.education]?.name ?? l.key}
-            </span>
-            {t.education[l.educationKey as keyof typeof t.education]?.description}
-          </div>
-        ))}
+        {mode === "learn" && learnLabels.map(l => {
+          const edu = t.education[l.educationKey as keyof typeof t.education];
+          const isHovered = learnHover === l.key;
+          return (
+            <div
+              key={l.key}
+              data-testid={`learn-label-${l.key}`}
+              className={`station-callout station-callout--learn${isHovered ? " station-callout--learn-active" : ""}`}
+              style={{ top: l.y, left: l.x }}
+              onMouseEnter={() => setLearnHover(l.key)}
+              onMouseLeave={() => setLearnHover(null)}
+            >
+              <span className="callout-name">{edu?.name ?? l.key}</span>
+              {isHovered && edu?.description}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

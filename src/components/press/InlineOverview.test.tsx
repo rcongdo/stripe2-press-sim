@@ -58,14 +58,20 @@ describe("InlineOverview", () => {
     expect(screen.getByTestId("station-K")).toHaveAttribute("data-selected", "true");
   });
 
-  it("shows inter-station dryer labels in learn mode with water-based ink", () => {
-    wrap(<InlineOverview {...makeProps({ mode: "learn" })} />);
-    expect(screen.getAllByText("Dryer").length).toBeGreaterThan(0);
+  it("shows dryer tooltip on hover in learn mode with water-based ink", async () => {
+    const { container } = wrap(<InlineOverview {...makeProps({ mode: "learn" })} />);
+    // Find a dryer icon group (has a rect with orange stroke)
+    const dryerRect = container.querySelector("rect[stroke='#d06030']");
+    expect(dryerRect).toBeTruthy();
+    fireEvent.mouseEnter(dryerRect!.parentElement!);
+    expect(await screen.findByText("Inter-station Dryer / UV Lamp")).toBeInTheDocument();
+    fireEvent.mouseLeave(dryerRect!.parentElement!);
   });
 
-  it("shows UV labels in learn mode with UV ink", () => {
-    wrap(<InlineOverview {...makeProps({ mode: "learn", inkType: "uv" })} />);
-    expect(screen.getAllByText("UV").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Dryer")).not.toBeInTheDocument();
+  it("shows UV dryer icon in learn mode with UV ink", () => {
+    const { container } = wrap(<InlineOverview {...makeProps({ mode: "learn", inkType: "uv" })} />);
+    const uvRect = container.querySelector("rect[stroke='#c8a000']");
+    expect(uvRect).toBeTruthy();
+    expect(container.querySelector("rect[stroke='#d06030']")).toBeNull();
   });
 });

@@ -59,13 +59,16 @@ describe("CIOverview", () => {
     expect(station).toHaveAttribute("data-selected", "true");
   });
 
-  it("shows component labels in learn mode", () => {
+  it("shows CI drum tooltip on hover in learn mode", async () => {
     wrap(<CIOverview {...makeProps({ mode: "learn" })} />);
-    expect(screen.getByText("Central Impression Drum")).toBeInTheDocument();
-    expect(screen.getAllByText("Anilox Roll").length).toBeGreaterThan(0);
+    // The CI drum group is identifiable by the static "CI Drum" text it always shows
+    const drumText = screen.getByText("CI Drum");
+    fireEvent.mouseEnter(drumText.closest("g")!);
+    expect(await screen.findByText("Central Impression Drum")).toBeInTheDocument();
+    fireEvent.mouseLeave(drumText.closest("g")!);
   });
 
-  it("does not show component labels in operate mode", () => {
+  it("does not show component tooltips in operate mode", () => {
     wrap(<CIOverview {...makeProps({ mode: "operate" })} />);
     expect(screen.queryByText("Central Impression Drum")).not.toBeInTheDocument();
   });

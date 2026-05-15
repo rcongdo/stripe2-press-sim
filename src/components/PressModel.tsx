@@ -94,6 +94,7 @@ export function PressModel({ job, settings, outcome, selectedChannelId, pressTyp
           stationNumber={view.slotIndex + 1}
           stationCount={activeChannels.length}
           channelName={activeChannels[view.slotIndex]?.name ?? ""}
+          pressType={pressType}
           onPrevStation={() => goToSlot((view.slotIndex - 1 + activeChannels.length) % activeChannels.length)}
           onNextStation={() => goToSlot((view.slotIndex + 1) % activeChannels.length)}
           onBack={() => setView({ type: "overview" })}

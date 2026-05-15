@@ -14,8 +14,8 @@ type Props = {
 };
 
 const SVG_W       = 980;
-const SVG_H       = 400;
-const WEB_Y       = 130;
+const SVG_H       = 420;
+const WEB_Y       = 300;   // web runs near bottom; ink components extend upward
 const PITCH       = 90;
 const FIRST_X     = 70;
 const MAX_SLOTS   = 10;
@@ -46,9 +46,10 @@ type StationColumnProps = {
   mode: PressMode;
   t: ReturnType<typeof useLocale>["t"];
   onClick: () => void;
+  onHover?: (key: string | null) => void;
 };
 
-function StationColumn({ cx, ch, outcome, selected, mode, t, onClick }: StationColumnProps) {
+function StationColumn({ cx, ch, outcome, selected, mode, t, onClick, onHover }: StationColumnProps) {
   const isActive = ch !== null;
   const color = isActive ? ch!.displayColor : "#444";
   const ringColor = isActive
@@ -57,12 +58,13 @@ function StationColumn({ cx, ch, outcome, selected, mode, t, onClick }: StationC
 
   const plateCx  = cx - NIP_HALF;
   const impCx    = cx + NIP_HALF;
-  const aniloxCy = WEB_Y + PLATE_R + ANILOX_R;
-  const fontCy   = WEB_Y + PLATE_R + ANILOX_R * 2 + FOUNTAIN_R;
+  // Components rise above the web: anilox above plate, fountain above anilox
+  const aniloxCy = WEB_Y - PLATE_R - ANILOX_R;
+  const fontCy   = WEB_Y - PLATE_R - ANILOX_R * 2 - FOUNTAIN_R;
 
-  // Ink tray: rectangle with fountain roll partially submerged
-  const panTop   = fontCy;
-  const panBot   = fontCy + FOUNTAIN_R + 10;
+  // Ink tray: fountain top half submerged; tray sits above fountain center
+  const panBot   = fontCy;
+  const panTop   = fontCy - FOUNTAIN_R - 10;
   const panLeft  = plateCx - FOUNTAIN_R - 8;
   const panRight = plateCx + FOUNTAIN_R + 8;
 
@@ -81,37 +83,55 @@ function StationColumn({ cx, ch, outcome, selected, mode, t, onClick }: StationC
       <circle cx={impCx} cy={WEB_Y} r={IMP_R + 4} fill="none" stroke={ringColor} strokeWidth="3" opacity={isActive ? 0.9 : 0.3} />
 
       {/* Impression cylinder */}
-      <circle cx={impCx} cy={WEB_Y} r={IMP_R} fill={isActive ? "#3a3a5a" : "#2a2a3a"} stroke={color} strokeWidth="1.5" />
+      <g
+        onMouseEnter={mode === "learn" && isActive ? () => onHover?.("impressionCylinder") : undefined}
+        onMouseLeave={mode === "learn" ? () => onHover?.(null) : undefined}
+      >
+        <circle cx={impCx} cy={WEB_Y} r={IMP_R} fill={isActive ? "#3a3a5a" : "#2a2a3a"} stroke={color} strokeWidth="1.5" />
+      </g>
 
       {/* Plate cylinder */}
-      <circle cx={plateCx} cy={WEB_Y} r={PLATE_R} fill={isActive ? "#3a3a5a" : "#2a2a3a"} stroke={color} strokeWidth="1.5" />
+      <g
+        onMouseEnter={mode === "learn" && isActive ? () => onHover?.("plateCylinder") : undefined}
+        onMouseLeave={mode === "learn" ? () => onHover?.(null) : undefined}
+      >
+        <circle cx={plateCx} cy={WEB_Y} r={PLATE_R} fill={isActive ? "#3a3a5a" : "#2a2a3a"} stroke={color} strokeWidth="1.5" />
+      </g>
 
-      {/* Anilox roll */}
-      <circle cx={plateCx} cy={aniloxCy} r={ANILOX_R} fill={isActive ? "#2e2e4e" : "#222233"} stroke="#666" strokeWidth="1" />
+      {/* Anilox roll + doctor blade */}
+      <g
+        onMouseEnter={mode === "learn" && isActive ? () => onHover?.("aniloxRoll") : undefined}
+        onMouseLeave={mode === "learn" ? () => onHover?.(null) : undefined}
+      >
+        <circle cx={plateCx} cy={aniloxCy} r={ANILOX_R} fill={isActive ? "#2e2e4e" : "#222233"} stroke="#666" strokeWidth="1" />
+        <line
+          x1={plateCx + ANILOX_R * 0.6} y1={aniloxCy + ANILOX_R * 0.8}
+          x2={plateCx + ANILOX_R + 11}   y2={aniloxCy + ANILOX_R * 2.2}
+          stroke={isActive ? "#999" : "#555"} strokeWidth="1.5" strokeLinecap="round"
+        />
+      </g>
 
-      {/* Anilox doctor blade — short angled bar touching upper-right of anilox */}
-      <line
-        x1={plateCx + ANILOX_R * 0.6} y1={aniloxCy - ANILOX_R * 0.8}
-        x2={plateCx + ANILOX_R + 11}   y2={aniloxCy - ANILOX_R * 2.2}
-        stroke={isActive ? "#999" : "#555"} strokeWidth="1.5" strokeLinecap="round"
-      />
-
-      {/* Fountain roll — bottom half sits inside ink tray */}
-      <circle cx={plateCx} cy={fontCy} r={FOUNTAIN_R} fill={isActive ? "#2e2e4e" : "#222233"} stroke="#555" strokeWidth="1" />
+      {/* Fountain roll + ink tray */}
+      <g
+        onMouseEnter={mode === "learn" && isActive ? () => onHover?.("fountainRoll") : undefined}
+        onMouseLeave={mode === "learn" ? () => onHover?.(null) : undefined}
+      >
+        <circle cx={plateCx} cy={fontCy} r={FOUNTAIN_R} fill={isActive ? "#2e2e4e" : "#222233"} stroke="#555" strokeWidth="1" />
 
       {/* Ink tray */}
       <rect
         x={panLeft} y={panTop} width={panRight - panLeft} height={panBot - panTop}
         fill={isActive ? "#1e1e3e" : "#181828"} stroke="#555" strokeWidth="1"
       />
-      {/* Ink fill inside tray */}
+      {/* Ink fill inside tray — bottom portion (gravity) */}
       {isActive && (
         <rect
-          x={panLeft + 1} y={panTop + (panBot - panTop) * 0.45}
+          x={panLeft + 1} y={panBot - (panBot - panTop) * 0.55}
           width={panRight - panLeft - 2} height={(panBot - panTop) * 0.55 - 1}
           fill={color} fillOpacity="0.3"
         />
       )}
+      </g>
 
       {/* Channel label */}
       {isActive && (
@@ -120,26 +140,21 @@ function StationColumn({ cx, ch, outcome, selected, mode, t, onClick }: StationC
         </text>
       )}
 
-      {/* Learn-mode labels */}
-      {mode === "learn" && isActive && (
-        <>
-          <text x={impCx + IMP_R + 4} y={WEB_Y - 2} fill="#ccc" fontSize="8">{t.education.impressionCylinder.name}</text>
-          <text x={plateCx - PLATE_R - 4} y={WEB_Y - 2} fill="#ccc" fontSize="8" textAnchor="end">{t.education.plateCylinder.name}</text>
-          <text x={plateCx - ANILOX_R - 4} y={aniloxCy + 3} fill="#ccc" fontSize="8" textAnchor="end">{t.education.aniloxRoll.name}</text>
-          <text x={plateCx - FOUNTAIN_R - 4} y={fontCy + 3} fill="#ccc" fontSize="8" textAnchor="end">{t.education.fountainRoll.name}</text>
-        </>
-      )}
+      {/* Learn-mode labels — shown on hover via parent hover state */}
     </g>
   );
 }
 
-type DryerIconProps = { x: number; y: number; inkType: InkType; mode: PressMode; onLearnClick?: () => void };
+type DryerIconProps = { x: number; y: number; inkType: InkType; mode: PressMode; onLearnClick?: () => void; onLearnLeave?: () => void };
 
-function DryerIcon({ x, y, inkType, mode, onLearnClick }: DryerIconProps) {
+function DryerIcon({ x, y, inkType, mode, onLearnClick, onLearnLeave }: DryerIconProps) {
   const isUv = inkType === "uv";
-  const label = isUv ? "UV" : "Dryer";
   return (
-    <g>
+    <g
+      onMouseEnter={mode === "learn" ? onLearnClick : undefined}
+      onMouseLeave={mode === "learn" ? onLearnLeave : undefined}
+      style={mode === "learn" ? { cursor: "help" } : undefined}
+    >
       {isUv ? (
         <>
           <rect x={x - 10} y={y - 8} width={20} height={16} rx="2" fill="#2a2a1e" stroke="#c8a000" strokeWidth="1.5" />
@@ -156,21 +171,12 @@ function DryerIcon({ x, y, inkType, mode, onLearnClick }: DryerIconProps) {
           ))}
         </>
       )}
-      {mode === "learn" && (
-        <text
-          x={x} y={y + 16} textAnchor="middle" fill="#0f6b78" fontSize="8" fontWeight="700"
-          style={{ cursor: "pointer" }}
-          onClick={onLearnClick}
-        >
-          {label}
-        </text>
-      )}
     </g>
   );
 }
 
 export function InlineOverview({ job, settings, outcome, mode, selectedChannelId, inkType, onStationClick }: Props) {
-  const [dryerTooltip, setDryerTooltip] = useState(false);
+  const [learnHover, setLearnHover] = useState<string | null>(null);
   const { t } = useLocale();
   const activeChannels = job.channels.filter(ch => ch.id in settings.inkChannels);
   const nStations = Math.min(activeChannels.length, MAX_SLOTS);
@@ -189,16 +195,15 @@ export function InlineOverview({ job, settings, outcome, mode, selectedChannelId
   // Straight horizontal web path through all station nips
   const webPath = `M ${REEL_R + 8},${WEB_Y} L ${rewindX + REEL_R - 8},${WEB_Y}`;
 
+  const tooltipKey = learnHover;
+  const tooltipEdu = tooltipKey ? t.education[tooltipKey as keyof typeof t.education] : null;
+
   return (
     <div data-testid="press-overview" style={{ position: "relative" }}>
-      {dryerTooltip && (
-        <div
-          className="learn-tooltip"
-          style={{ position: "static", marginBottom: 8, pointerEvents: "auto", cursor: "pointer" }}
-          onClick={() => setDryerTooltip(false)}
-        >
-          <div className="learn-tooltip__name">{t.education.interStationDryer.name}</div>
-          {t.education.interStationDryer.description}
+      {mode === "learn" && tooltipEdu && (
+        <div className="learn-tooltip" style={{ position: "static", marginBottom: 8 }}>
+          <div className="learn-tooltip__name">{tooltipEdu.name}</div>
+          {tooltipEdu.description}
         </div>
       )}
       <svg
@@ -232,6 +237,7 @@ export function InlineOverview({ job, settings, outcome, mode, selectedChannelId
               mode={mode}
               t={t}
               onClick={() => ch && onStationClick(ch.id)}
+              onHover={setLearnHover}
             />
           );
         })}
@@ -241,7 +247,8 @@ export function InlineOverview({ job, settings, outcome, mode, selectedChannelId
           const midX = FIRST_X + i * PITCH + PITCH / 2;
           return (
             <DryerIcon key={i} x={midX} y={ICON_Y} inkType={inkType} mode={mode}
-              onLearnClick={() => setDryerTooltip(prev => !prev)} />
+              onLearnClick={() => setLearnHover("interStationDryer")}
+              onLearnLeave={() => setLearnHover(null)} />
           );
         })}
 
@@ -252,12 +259,6 @@ export function InlineOverview({ job, settings, outcome, mode, selectedChannelId
           <text x={rewindX} y={WEB_Y + REEL_R + 14} textAnchor="middle" fill="#999" fontSize="8">Rewind</text>
         )}
 
-        {/* Inline press learn label */}
-        {mode === "learn" && (
-          <text x={SVG_W / 2} y={SVG_H - 10} textAnchor="middle" fill="#888" fontSize="9">
-            {t.education.inlinePress.name}
-          </text>
-        )}
       </svg>
     </div>
   );
