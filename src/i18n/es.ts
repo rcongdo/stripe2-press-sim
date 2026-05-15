@@ -19,6 +19,7 @@ export const es: Locale = {
     operate: "Operar",
     learn: "Aprender",
     cancel: "Cancelar",
+    customPdf: "PDF personalizado…",
   },
 
   tabs: { printedOutput: "Impresión", pressModel: "Modelo de prensa" },

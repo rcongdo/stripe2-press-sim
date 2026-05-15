@@ -162,7 +162,7 @@ export default function App() {
           >
             {JOB_REGISTRY.map(j => <option key={j.id} value={j.id}>{j.name}</option>)}
             <option value="__custom__">
-              {customJob ? customJob.name : "Custom PDF…"}
+              {customJob ? customJob.name : t.actions.customPdf}
             </option>
           </select>
           <button type="button" className="secondary-button" onClick={resetJob}>{t.actions.resetJob}</button>

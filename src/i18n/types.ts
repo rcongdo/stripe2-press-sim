@@ -16,6 +16,7 @@ export type Locale = {
     operate: string;
     learn: string;
     cancel: string;
+    customPdf: string;
   };
 
   tabs: { printedOutput: string; pressModel: string };
