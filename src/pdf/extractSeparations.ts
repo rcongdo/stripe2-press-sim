@@ -39,7 +39,7 @@ export async function extractSeparations(file: File): Promise<ExtractedLayers> {
       const sepImages = await renderSeparationChannels(buffer, cmykOnlyBytes, separationNames);
       Object.assign(images, sepImages);
     } catch (e) {
-      console.warn("Failed to render separation channels:", e);
+      console.error("Failed to render separation channels:", e);
     }
   }
 
@@ -48,7 +48,7 @@ export async function extractSeparations(file: File): Promise<ExtractedLayers> {
       const cmykImages = await renderCmykChannels(cmykOnlyBytes, cmykNames);
       Object.assign(images, cmykImages);
     } catch (e) {
-      console.warn("Failed to render CMYK channels:", e);
+      console.error("Failed to render CMYK channels:", e);
     }
   }
 
@@ -248,7 +248,8 @@ async function renderCmykChannels(
   buffer: ArrayBuffer | Uint8Array,
   names: string[],
 ): Promise<Record<string, ImageBitmap>> {
-  const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+  const data = buffer instanceof Uint8Array ? buffer.slice() : new Uint8Array(buffer).slice();
+  const pdf = await pdfjsLib.getDocument({ data }).promise;
   try {
     const page = await pdf.getPage(1);
     const viewport = page.getViewport({ scale: 1 });
@@ -316,7 +317,10 @@ async function renderCmykChannels(
 async function renderPageRgba(
   bytes: Uint8Array | ArrayBuffer,
 ): Promise<{ w: number; h: number; data: Uint8ClampedArray }> {
-  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+  // pdfjs transfers the underlying ArrayBuffer to its worker (zero-copy).
+  // Slice first so callers can reuse the same buffer across multiple renders.
+  const data = bytes instanceof Uint8Array ? bytes.slice() : new Uint8Array(bytes).slice();
+  const pdf = await pdfjsLib.getDocument({ data }).promise;
   try {
     const page = await pdf.getPage(1);
     const viewport = page.getViewport({ scale: 1 });
@@ -375,7 +379,7 @@ async function renderSeparationChannels(
       channelCtx.putImageData(channelData, 0, 0);
       result[name] = await createImageBitmap(channelCanvas);
     } catch (e) {
-      console.warn(`Failed to render separation "${name}":`, e);
+      console.error(`Failed to render separation "${name}":`, e);
     }
   }
 
