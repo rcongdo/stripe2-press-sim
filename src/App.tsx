@@ -6,7 +6,7 @@ import { PressModel } from "./components/PressModel";
 import { PrintPreview } from "./components/PrintPreview";
 import { PdfUploadModal } from "./components/PdfUploadModal";
 import { ScoreModal } from "./components/ScoreModal";
-import { JOB_REGISTRY, snackPouchJob } from "./domain/jobs";
+import { JOB_REGISTRY, snackPouchJob, UV_POWER_RANGE } from "./domain/jobs";
 import {
   activateSpotChannel,
   createInitialSettings,
@@ -19,8 +19,10 @@ import type {
   ChannelId,
   CustomPdfJob,
   InkChannelSettingKey,
+  InkType,
   JobPreset,
   PressSettingKey,
+  PressType,
   RegistrationOffset,
 } from "./domain/types";
 import { simulatePress } from "./simulation/engine";
@@ -37,6 +39,12 @@ export default function App() {
   );
   const [customJob,      setCustomJob]      = useState<CustomPdfJob | null>(null);
   const [showPdfUpload,  setShowPdfUpload]  = useState(false);
+  const [pressType, setPressType] = useState<PressType>(
+    snackPouchJob.defaultPressType ?? "ci"
+  );
+  const [inkType, setInkType] = useState<InkType>(
+    snackPouchJob.defaultInkType ?? "water-based"
+  );
 
   const activeJob = customJob ?? selectedJob;
 
@@ -49,6 +57,8 @@ export default function App() {
     setSettings(createInitialSettings(job));
     setScore(null);
     setSelectedChannelId(job.channels.find(ch => ch.initiallyActive)?.id ?? "C");
+    setPressType(job.defaultPressType ?? "ci");
+    setInkType(job.defaultInkType ?? "water-based");
   }
 
   function handleSettingChange(key: PressSettingKey, value: number) {
@@ -84,14 +94,60 @@ export default function App() {
     setScore(null);
   }
 
+  function handlePressTypeChange(next: PressType) {
+    setPressType(next);
+    if (next === "ci" && inkType === "uv") {
+      setInkType("water-based");
+      setSettings(current => ({
+        ...current,
+        dryerTemperature: activeJob.initialSettings.dryerTemperature,
+      }));
+    }
+  }
+
+  function handleInkTypeChange(next: InkType) {
+    if (next === "uv") {
+      setSettings(current => ({ ...current, dryerTemperature: UV_POWER_RANGE.min }));
+    } else if (inkType === "uv") {
+      setSettings(current => ({
+        ...current,
+        dryerTemperature: activeJob.initialSettings.dryerTemperature,
+      }));
+    }
+    setInkType(next);
+  }
+
   return (
     <main className="app-shell">
       <header className="app-header">
         <div>
-          <p className="eyebrow">Wide-web flexible packaging</p>
+          <p className="eyebrow">
+            {pressType === "ci" ? "CI wide-web" : "Inline narrow-web"}
+            {" · "}
+            {inkType === "uv" ? "UV" : inkType === "solvent" ? "Solvent" : "Water-based"}
+          </p>
           <h1>Flexographic Press Simulator</h1>
         </div>
         <div className="header-actions">
+          <select
+            className="job-selector"
+            value={pressType}
+            aria-label="Select press type"
+            onChange={e => handlePressTypeChange(e.target.value as PressType)}
+          >
+            <option value="ci">CI Wide Web</option>
+            <option value="inline">Inline Narrow Web</option>
+          </select>
+          <select
+            className="job-selector"
+            value={inkType}
+            aria-label="Select ink type"
+            onChange={e => handleInkTypeChange(e.target.value as InkType)}
+          >
+            <option value="water-based">Water-based</option>
+            <option value="solvent">Solvent</option>
+            <option value="uv" disabled={pressType === "ci"}>UV</option>
+          </select>
           <select
             className="job-selector"
             value={customJob ? "__custom__" : selectedJob.id}
@@ -121,6 +177,7 @@ export default function App() {
         settings={settings}
         outcome={outcome}
         mode={mode}
+        inkType={inkType}
         onSettingChange={handleSettingChange}
       />
 
@@ -151,6 +208,8 @@ export default function App() {
               outcome={outcome}
               selectedChannelId={selectedChannelId}
               onStationSelect={setSelectedChannelId}
+              pressType={pressType}
+              inkType={inkType}
             />
           )}
           <CoachPanel messages={coaching} mode={mode} onModeChange={setMode} />
