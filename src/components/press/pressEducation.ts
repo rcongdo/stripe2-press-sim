@@ -36,4 +36,24 @@ export const PRESS_EDUCATION: Record<string, EducationEntry> = {
     description:
       "The continuous roll of film, foil, or paper being printed. On a CI press the web wraps tightly around the central drum so each colour station prints on a dimensionally stable, well-supported surface, giving CI presses exceptional registration across all colours.",
   },
+  inlinePress: {
+    name: "Inline Narrow-Web Press",
+    description:
+      "Stations are arranged in a horizontal line and each has its own impression cylinder. The web threads through each station sequentially rather than wrapping around a shared central drum. Registration errors can accumulate from station to station, making precise mechanical setup more critical than on a CI press.",
+  },
+  impressionCylinder: {
+    name: "Impression Cylinder",
+    description:
+      "On an inline press each station has its own impression cylinder that backs the substrate at the print nip. Impression pressure is set independently per station, giving more flexibility but requiring individual calibration.",
+  },
+  fountainRoll: {
+    name: "Fountain Roll",
+    description:
+      "A rubber-covered roller that rotates partially submerged in the ink pan. It picks up a film of ink and transfers it to the anilox roll. Fountain roll speed relative to the anilox affects how much ink is supplied to the system.",
+  },
+  interStationDryer: {
+    name: "Inter-station Dryer / UV Lamp",
+    description:
+      "On an inline press the web passes through a drying or curing unit between each print station. This allows ink to set before the next colour is applied, reducing trapping issues and enabling reverse printing on clear film. UV lamps cure ink instantly with no heat; hot-air dryers evaporate solvent or water.",
+  },
 };
