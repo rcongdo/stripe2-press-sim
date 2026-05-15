@@ -60,6 +60,8 @@ type AnalysisResult = {
 };
 
 // Resolve a PDF value (possibly a ref) and return it if it is an instance of T.
+// Also handles direct (inline) objects — pdf-lib's context.lookup throws on non-refs
+// in some versions, so we check instanceof before trying the lookup.
 // Uses { prototype: T } instead of a constructor type because pdf-lib classes
 // have private/protected constructors that TypeScript won't accept as `new()`.
 function resolve<T>(
@@ -68,6 +70,8 @@ function resolve<T>(
   Type: { prototype: T },
 ): T | undefined {
   if (!ref) return undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (ref instanceof (Type as any)) return ref as unknown as T;
   try {
     const obj = pdfDoc.context.lookup(ref);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -84,6 +88,7 @@ function resolveDict(
   ref: ReturnType<PDFDict["get"]>,
 ): PDFDict | undefined {
   if (!ref) return undefined;
+  if (ref instanceof PDFDict) return ref;
   try {
     const obj = pdfDoc.context.lookup(ref) as unknown as { dict?: PDFDict };
     if (obj instanceof PDFDict) return obj;
@@ -93,55 +98,122 @@ function resolveDict(
   }
 }
 
+// Walk a resources dict (and any Form XObjects it references) collecting Separation
+// colorant names and detecting DeviceCMYK usage.  visited prevents infinite loops
+// from circular XObject references.
+function collectFromResources(
+  pdfDoc: PDFDocument,
+  resources: PDFDict,
+  seen: Set<string>,
+  separationNames: string[],
+  hasCmykRef: { value: boolean },
+  visited: Set<string>,
+): void {
+  const colorSpaceDict = resolve(pdfDoc, resources.get(PDFName.of("ColorSpace")), PDFDict);
+  if (colorSpaceDict) {
+    for (const [, value] of colorSpaceDict.entries()) {
+      const csArray = resolve(pdfDoc, value, PDFArray);
+      if (!csArray) continue;
+      const el0 = resolve(pdfDoc, csArray.get(0), PDFName);
+      if (el0?.asString() !== "/Separation") continue;
+      const el1 = resolve(pdfDoc, csArray.get(1), PDFName);
+      if (!el1) continue;
+      const name = decodeColorantName(el1.asString().slice(1));
+      if (!seen.has(name)) { seen.add(name); separationNames.push(name); }
+    }
+  }
+
+  const xObjectDict = resolve(pdfDoc, resources.get(PDFName.of("XObject")), PDFDict);
+  if (!xObjectDict) return;
+
+  for (const [, ref] of xObjectDict.entries()) {
+    const xObj = resolveDict(pdfDoc, ref);
+    if (!xObj) continue;
+
+    // Detect DeviceCMYK image XObjects
+    if (!hasCmykRef.value) {
+      const csObj = resolve(pdfDoc, xObj.get(PDFName.of("ColorSpace")), PDFName);
+      if (csObj?.asString() === "/DeviceCMYK") hasCmykRef.value = true;
+    }
+
+    // Recurse into Form XObjects
+    const subtype = resolve(pdfDoc, xObj.get(PDFName.of("Subtype")), PDFName);
+    if (subtype?.asString() !== "/Form") continue;
+    const key = String(ref);
+    if (visited.has(key)) continue;
+    visited.add(key);
+    const xRes = resolve(pdfDoc, xObj.get(PDFName.of("Resources")), PDFDict);
+    if (xRes) collectFromResources(pdfDoc, xRes, seen, separationNames, hasCmykRef, visited);
+  }
+}
+
+// Rewrite every Separation tint function in a resources dict (and Form XObjects)
+// so that only targetColorant renders (others become white/invisible).
+// Pass targetColorant="" to blank ALL separations (used for CMYK-only extraction).
+function rewriteResourcesColorSpaces(
+  pdfDoc: PDFDocument,
+  resources: PDFDict,
+  targetColorant: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  invertFn: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  whiteFn: any,
+  visited: Set<string>,
+): void {
+  const colorSpaceDict = resolve(pdfDoc, resources.get(PDFName.of("ColorSpace")), PDFDict);
+  if (colorSpaceDict) {
+    for (const [key, value] of colorSpaceDict.entries()) {
+      const csArray = resolve(pdfDoc, value, PDFArray);
+      if (!csArray) continue;
+      const el0 = resolve(pdfDoc, csArray.get(0), PDFName);
+      if (el0?.asString() !== "/Separation") continue;
+      const el1 = resolve(pdfDoc, csArray.get(1), PDFName);
+      if (!el1) continue;
+      const name = decodeColorantName(el1.asString().slice(1));
+      colorSpaceDict.set(key, pdfDoc.context.obj([
+        PDFName.of("Separation"),
+        el1,
+        PDFName.of("DeviceGray"),
+        name === targetColorant ? invertFn : whiteFn,
+      ]));
+    }
+  }
+
+  // Recurse into Form XObjects so their own resource dicts are rewritten too
+  const xObjectDict = resolve(pdfDoc, resources.get(PDFName.of("XObject")), PDFDict);
+  if (!xObjectDict) return;
+  for (const [, ref] of xObjectDict.entries()) {
+    const xObj = resolveDict(pdfDoc, ref);
+    if (!xObj) continue;
+    const subtype = resolve(pdfDoc, xObj.get(PDFName.of("Subtype")), PDFName);
+    if (subtype?.asString() !== "/Form") continue;
+    const key = String(ref);
+    if (visited.has(key)) continue;
+    visited.add(key);
+    const xRes = resolve(pdfDoc, xObj.get(PDFName.of("Resources")), PDFDict);
+    if (xRes) rewriteResourcesColorSpaces(pdfDoc, xRes, targetColorant, invertFn, whiteFn, visited);
+  }
+}
+
 async function analyzeColorSpaces(buffer: ArrayBuffer): Promise<AnalysisResult> {
   const pdfDoc = await PDFDocument.load(buffer);
   const page = pdfDoc.getPage(0);
 
   const seen = new Set<string>();
   const separationNames: string[] = [];
-  let hasCmyk = false;
+  const hasCmykRef = { value: false };
 
   let resources: PDFDict | undefined;
   try {
     resources = page.node.Resources();
   } catch {
-    return { separationNames, hasCmyk };
+    return { separationNames, hasCmyk: false };
   }
-  if (!resources) return { separationNames, hasCmyk };
+  if (!resources) return { separationNames, hasCmyk: false };
 
-  // Collect Separation colorant names from the page ColorSpace dict
-  const colorSpaceDict = resolve(pdfDoc, resources.get(PDFName.of("ColorSpace")), PDFDict);
-  if (colorSpaceDict) {
-    for (const [, value] of colorSpaceDict.entries()) {
-      const csArray = resolve(pdfDoc, value, PDFArray);
-      if (!csArray) continue;
+  collectFromResources(pdfDoc, resources, seen, separationNames, hasCmykRef, new Set());
 
-      const el0 = resolve(pdfDoc, csArray.get(0), PDFName);
-      if (el0?.asString() !== "/Separation") continue;
-
-      const el1 = resolve(pdfDoc, csArray.get(1), PDFName);
-      if (!el1) continue;
-
-      const name = decodeColorantName(el1.asString().slice(1));
-      if (!seen.has(name)) { seen.add(name); separationNames.push(name); }
-    }
-  }
-
-  // Detect DeviceCMYK usage in image XObjects (which are streams, not plain dicts)
-  const xObjectDict = resolve(pdfDoc, resources.get(PDFName.of("XObject")), PDFDict);
-  if (xObjectDict) {
-    for (const [, ref] of xObjectDict.entries()) {
-      const xObj = resolveDict(pdfDoc, ref);
-      if (!xObj) continue;
-      const csObj = resolve(pdfDoc, xObj.get(PDFName.of("ColorSpace")), PDFName);
-      if (csObj?.asString() === "/DeviceCMYK") {
-        hasCmyk = true;
-        break;
-      }
-    }
-  }
-
-  return { separationNames, hasCmyk };
+  return { separationNames, hasCmyk: hasCmykRef.value };
 }
 
 async function rewriteTintFunctions(
@@ -155,9 +227,6 @@ async function rewriteTintFunctions(
   try { resources = page.node.Resources(); } catch { /* no resources */ }
   if (!resources) return new Uint8Array(buffer);
 
-  const colorSpaceDict = resolve(pdfDoc, resources.get(PDFName.of("ColorSpace")), PDFDict);
-  if (!colorSpaceDict) return new Uint8Array(buffer);
-
   // tint → DeviceGray: 0=white (no ink), 1=black (full ink)
   const invertFn = pdfDoc.context.obj({
     FunctionType: 2, Domain: [0, 1], Range: [0, 1], C0: [1], C1: [0], N: 1,
@@ -167,24 +236,9 @@ async function rewriteTintFunctions(
     FunctionType: 2, Domain: [0, 1], Range: [0, 1], C0: [1], C1: [1], N: 1,
   });
 
-  for (const [key, value] of colorSpaceDict.entries()) {
-    const csArray = resolve(pdfDoc, value, PDFArray);
-    if (!csArray) continue;
-
-    const el0 = resolve(pdfDoc, csArray.get(0), PDFName);
-    if (el0?.asString() !== "/Separation") continue;
-
-    const el1 = resolve(pdfDoc, csArray.get(1), PDFName);
-    if (!el1) continue;
-
-    const name = decodeColorantName(el1.asString().slice(1));
-    colorSpaceDict.set(key, pdfDoc.context.obj([
-      PDFName.of("Separation"),
-      el1,
-      PDFName.of("DeviceGray"),
-      name === targetColorant ? invertFn : whiteFn,
-    ]));
-  }
+  // Rewrite page-level resources AND recurse into Form XObjects, which carry
+  // their own ColorSpace dicts that would otherwise render at full color.
+  rewriteResourcesColorSpaces(pdfDoc, resources, targetColorant, invertFn, whiteFn, new Set());
 
   return pdfDoc.save();
 }
