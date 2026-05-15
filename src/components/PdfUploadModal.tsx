@@ -4,6 +4,7 @@ import type { CustomPdfJob } from "../domain/types";
 import { autoMapColorants } from "../pdf/autoMapper";
 import { buildCustomJob } from "../pdf/buildCustomJob";
 import { extractSeparations } from "../pdf/extractSeparations";
+import { useLocale } from "../i18n/LocaleContext";
 
 type LayerRow = { name: string; channelId: ChannelId | "ignore" };
 
@@ -24,6 +25,7 @@ const CHANNEL_OPTIONS: { value: string; label: string }[] = [
 ];
 
 export function PdfUploadModal({ onConfirm, onCancel }: Props) {
+  const { t } = useLocale();
   const [step,     setStep]     = useState<"pick" | "map">("pick");
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState<string | null>(null);
@@ -72,7 +74,7 @@ export function PdfUploadModal({ onConfirm, onCancel }: Props) {
             <p>Select a PDF with color separations (one Separation color space per ink channel).</p>
             {error && <p className="modal-error" role="alert">{error}</p>}
             {loading ? (
-              <p className="modal-loading">Reading PDF…</p>
+              <p className="modal-loading">{t.readingPdf}</p>
             ) : (
               <label className="file-drop-zone">
                 <span>Drop PDF here or click to browse</span>
@@ -120,7 +122,7 @@ export function PdfUploadModal({ onConfirm, onCancel }: Props) {
               </tbody>
             </table>
             <div className="modal-footer">
-              <button type="button" className="secondary-button" onClick={onCancel}>Cancel</button>
+              <button type="button" className="secondary-button" onClick={onCancel}>{t.actions.cancel}</button>
               <button
                 type="button"
                 className="primary-button"
