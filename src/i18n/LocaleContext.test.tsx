@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LocaleProvider, useLocale } from "./LocaleContext";
 
 function LangDisplay() {
@@ -49,9 +49,8 @@ describe("LocaleContext", () => {
   });
 
   it("throws when useLocale is used outside LocaleProvider", () => {
-    const originalError = console.error;
-    console.error = () => {};
+    vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => render(<LangDisplay />)).toThrow("useLocale must be used inside LocaleProvider");
-    console.error = originalError;
+    vi.restoreAllMocks();
   });
 });
