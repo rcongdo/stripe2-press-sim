@@ -7,6 +7,8 @@ import { PrintPreview } from "./components/PrintPreview";
 import { PdfUploadModal } from "./components/PdfUploadModal";
 import { ScoreModal } from "./components/ScoreModal";
 import { JOB_REGISTRY, snackPouchJob, UV_POWER_RANGE } from "./domain/jobs";
+import { useLocale } from "./i18n/LocaleContext";
+import type { Lang } from "./i18n/types";
 import {
   activateSpotChannel,
   createInitialSettings,
@@ -29,6 +31,7 @@ import { simulatePress } from "./simulation/engine";
 import { filterCoaching, scoreRun, type TrainingMode } from "./simulation/scoring";
 
 export default function App() {
+  const { t, lang, setLang } = useLocale();
   const [selectedJob, setSelectedJob] = useState<JobPreset>(snackPouchJob);
   const [settings, setSettings] = useState(() => createInitialSettings(snackPouchJob));
   const [mode, setMode] = useState<TrainingMode>("guided");
@@ -121,12 +124,8 @@ export default function App() {
     <main className="app-shell">
       <header className="app-header">
         <div>
-          <p className="eyebrow">
-            {pressType === "ci" ? "CI wide-web" : "Inline narrow-web"}
-            {" · "}
-            {inkType === "uv" ? "UV" : inkType === "solvent" ? "Solvent" : "Water-based"}
-          </p>
-          <h1>Flexographic Press Simulator</h1>
+          <p className="eyebrow">{t.eyebrow(pressType, inkType)}</p>
+          <h1>{t.appTitle}</h1>
         </div>
         <div className="header-actions">
           <select
@@ -135,8 +134,8 @@ export default function App() {
             aria-label="Select press type"
             onChange={e => handlePressTypeChange(e.target.value as PressType)}
           >
-            <option value="ci">CI Wide Web</option>
-            <option value="inline">Inline Narrow Web</option>
+            <option value="ci">{t.pressTypes.ci}</option>
+            <option value="inline">{t.pressTypes.inline}</option>
           </select>
           <select
             className="job-selector"
@@ -144,9 +143,9 @@ export default function App() {
             aria-label="Select ink type"
             onChange={e => handleInkTypeChange(e.target.value as InkType)}
           >
-            <option value="water-based">Water-based</option>
-            <option value="solvent">Solvent</option>
-            <option value="uv" disabled={pressType === "ci"}>UV</option>
+            <option value="water-based">{t.inkTypes.waterBased}</option>
+            <option value="solvent">{t.inkTypes.solvent}</option>
+            <option value="uv" disabled={pressType === "ci"}>{t.inkTypes.uv}</option>
           </select>
           <select
             className="job-selector"
@@ -166,9 +165,9 @@ export default function App() {
               {customJob ? customJob.name : "Custom PDF…"}
             </option>
           </select>
-          <button type="button" className="secondary-button" onClick={resetJob}>Reset job</button>
-          <button type="button" className="secondary-button" onClick={makePerfect}>Make perfect</button>
-          <button type="button" className="primary-button" onClick={() => setScore(scoreRun(outcome))}>Finish run</button>
+          <button type="button" className="secondary-button" onClick={resetJob}>{t.actions.resetJob}</button>
+          <button type="button" className="secondary-button" onClick={makePerfect}>{t.actions.makePerfect}</button>
+          <button type="button" className="primary-button" onClick={() => setScore(scoreRun(outcome))}>{t.actions.finishRun}</button>
         </div>
       </header>
 
@@ -189,14 +188,14 @@ export default function App() {
               className={`workspace-tab${activeTab === "output" ? " workspace-tab--active" : ""}`}
               onClick={() => setActiveTab("output")}
             >
-              Printed Output
+              {t.tabs.printedOutput}
             </button>
             <button
               type="button"
               className={`workspace-tab${activeTab === "press" ? " workspace-tab--active" : ""}`}
               onClick={() => setActiveTab("press")}
             >
-              Press Model
+              {t.tabs.pressModel}
             </button>
           </div>
           {activeTab === "output" ? (
@@ -225,6 +224,17 @@ export default function App() {
           onChannelSelect={setSelectedChannelId}
         />
       </div>
+      <footer className="lang-footer">
+        <label htmlFor="lang-select">{t.languageLabel}</label>
+        <select
+          id="lang-select"
+          value={lang}
+          onChange={e => setLang(e.target.value as Lang)}
+        >
+          <option value="en">{t.languageNames.en}</option>
+          <option value="es">{t.languageNames.es}</option>
+        </select>
+      </footer>
       <ScoreModal score={score} onClose={() => setScore(null)} onReset={resetJob} />
       {showPdfUpload && (
         <PdfUploadModal

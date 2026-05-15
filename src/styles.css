@@ -960,3 +960,13 @@ h3 {
 .station-callout--learn::after {
   border-top-color: #0f6b78;
 }
+
+.lang-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.5rem;
+  font-size: 0.75rem;
+  color: #888;
+  border-top: 1px solid #2a2a3a;
+}
