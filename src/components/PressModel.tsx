@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ChannelId, InkType, JobPreset, PressSettings, PressType, SimulationOutcome } from "../domain/types";
+import { useLocale } from "../i18n/LocaleContext";
 import { CIOverview } from "./press/CIOverview";
 import { InlineOverview } from "./press/InlineOverview";
 import { StationDetail } from "./press/StationDetail";
@@ -21,6 +22,7 @@ type PressModelProps = {
 };
 
 export function PressModel({ job, settings, outcome, selectedChannelId, pressType = "ci", inkType = "water-based", onStationSelect }: PressModelProps) {
+  const { t } = useLocale();
   const [mode, setMode] = useState<PressMode>("operate");
   const [view, setView] = useState<PressView>({ type: "overview" });
 
@@ -42,7 +44,7 @@ export function PressModel({ job, settings, outcome, selectedChannelId, pressTyp
           aria-pressed={mode === "operate"}
           onClick={() => setMode("operate")}
         >
-          Operate
+          {t.actions.operate}
         </button>
         <button
           type="button"
@@ -50,7 +52,7 @@ export function PressModel({ job, settings, outcome, selectedChannelId, pressTyp
           aria-pressed={mode === "learn"}
           onClick={() => setMode("learn")}
         >
-          Learn
+          {t.actions.learn}
         </button>
       </div>
 
