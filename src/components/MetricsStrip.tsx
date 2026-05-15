@@ -1,12 +1,15 @@
 import { useRef, useState } from "react";
 import type { TrainingMode } from "../simulation/scoring";
 import type { ChannelDef, JobPreset, PressSettingKey, PressSettings, SimulationOutcome } from "../domain/types";
+import { UV_POWER_RANGE } from "../domain/jobs";
+import type { InkType } from "../domain/types";
 
 type MetricsStripProps = {
   job: JobPreset;
   settings: PressSettings;
   outcome: SimulationOutcome;
   mode: TrainingMode;
+  inkType?: InkType;
   onSettingChange: (key: PressSettingKey, value: number) => void;
 };
 
@@ -73,13 +76,15 @@ function ChannelTable({ channels, outcome }: { channels: ChannelDef[]; outcome: 
   );
 }
 
-export function MetricsStrip({ job, settings, outcome, mode, onSettingChange }: MetricsStripProps) {
+export function MetricsStrip({ job, settings, outcome, mode, inkType = "water-based", onSettingChange }: MetricsStripProps) {
   const reg = registerStatus(outcome.registerError);
   const channels = job.channels.filter(ch => ch.id in outcome.channelDensity);
   const first = channels.slice(0, 5);
   const second = channels.slice(5, 10);
 
   const guided = mode === "guided";
+
+  const dryerRange = inkType === "uv" ? UV_POWER_RANGE : job.ranges.dryerTemperature;
 
   return (
     <section className="metrics-strip" aria-label="Live press metrics">
@@ -122,7 +127,7 @@ export function MetricsStrip({ job, settings, outcome, mode, onSettingChange }: 
         </p>
         <div className="metrics-press-settings">
           {PRESS_SETTING_KEYS.map(key => {
-            const range = job.ranges[key];
+            const range = key === "dryerTemperature" ? dryerRange : job.ranges[key];
             const inputId = `press-setting-${key}`;
             return (
               <div className="metrics-slider" key={key}>
