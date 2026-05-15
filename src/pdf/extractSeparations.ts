@@ -43,12 +43,26 @@ export async function extractSeparations(file: File): Promise<ExtractedLayers> {
     }
   }
 
-  if (cmykNames.length > 0) {
+  // C, M, Y: decompose from spot-free render so separation inks don't contaminate them.
+  // K: decompose from the full composite so Black-separation content is included.
+  const cmykCmyNames = cmykNames.filter(n => n !== "Black");
+  const needsK = cmykNames.includes("Black");
+
+  if (cmykCmyNames.length > 0) {
     try {
-      const cmykImages = await renderCmykChannels(cmykOnlyBytes, cmykNames);
-      Object.assign(images, cmykImages);
+      const cmyImages = await renderCmykChannels(cmykOnlyBytes, cmykCmyNames);
+      Object.assign(images, cmyImages);
     } catch (e) {
-      console.error("Failed to render CMYK channels:", e);
+      console.error("Failed to render CMY channels:", e);
+    }
+  }
+
+  if (needsK) {
+    try {
+      const kImages = await renderCmykChannels(buffer, ["Black"]);
+      Object.assign(images, kImages);
+    } catch (e) {
+      console.error("Failed to render K channel:", e);
     }
   }
 
@@ -120,6 +134,8 @@ function collectFromResources(
       const el1 = resolve(pdfDoc, csArray.get(1), PDFName);
       if (!el1) continue;
       const name = decodeColorantName(el1.asString().slice(1));
+      // "Black" Separation is the K printing station — treat it as CMYK K, not a spot ink.
+      if (name.toLowerCase() === "black") { hasCmykRef.value = true; continue; }
       if (!seen.has(name)) { seen.add(name); separationNames.push(name); }
     }
   }
