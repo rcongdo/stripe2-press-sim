@@ -1,6 +1,7 @@
 import { useState } from "react";
-import type { ChannelId, JobPreset, PressSettings, SimulationOutcome } from "../domain/types";
+import type { ChannelId, InkType, JobPreset, PressSettings, PressType, SimulationOutcome } from "../domain/types";
 import { CIOverview } from "./press/CIOverview";
+import { InlineOverview } from "./press/InlineOverview";
 import { StationDetail } from "./press/StationDetail";
 
 export type PressMode = "operate" | "learn";
@@ -14,10 +15,12 @@ type PressModelProps = {
   settings: PressSettings;
   outcome: SimulationOutcome;
   selectedChannelId: ChannelId;
+  pressType?: PressType;
+  inkType?: InkType;
   onStationSelect?: (id: ChannelId) => void;
 };
 
-export function PressModel({ job, settings, outcome, selectedChannelId, onStationSelect }: PressModelProps) {
+export function PressModel({ job, settings, outcome, selectedChannelId, pressType = "ci", inkType = "water-based", onStationSelect }: PressModelProps) {
   const [mode, setMode] = useState<PressMode>("operate");
   const [view, setView] = useState<PressView>({ type: "overview" });
 
@@ -52,17 +55,32 @@ export function PressModel({ job, settings, outcome, selectedChannelId, onStatio
       </div>
 
       {view.type === "overview" ? (
-        <CIOverview
-          job={job}
-          settings={settings}
-          outcome={outcome}
-          mode={mode}
-          selectedChannelId={selectedChannelId}
-          onStationClick={(id) => {
-            const slot = activeChannels.findIndex(ch => ch.id === id);
-            if (slot >= 0) goToSlot(slot);
-          }}
-        />
+        pressType === "ci" ? (
+          <CIOverview
+            job={job}
+            settings={settings}
+            outcome={outcome}
+            mode={mode}
+            selectedChannelId={selectedChannelId}
+            onStationClick={(id) => {
+              const slot = activeChannels.findIndex(ch => ch.id === id);
+              if (slot >= 0) goToSlot(slot);
+            }}
+          />
+        ) : (
+          <InlineOverview
+            job={job}
+            settings={settings}
+            outcome={outcome}
+            mode={mode}
+            selectedChannelId={selectedChannelId}
+            inkType={inkType}
+            onStationClick={(id) => {
+              const slot = activeChannels.findIndex(ch => ch.id === id);
+              if (slot >= 0) goToSlot(slot);
+            }}
+          />
+        )
       ) : (
         <StationDetail
           job={job}
@@ -70,7 +88,7 @@ export function PressModel({ job, settings, outcome, selectedChannelId, onStatio
           outcome={outcome}
           mode={mode}
           channelId={activeChannels[view.slotIndex]?.id ?? activeChannels[0]?.id ?? "C"}
-          stationAngle={STATION_ANGLES[view.slotIndex] ?? 0}
+          stationAngle={pressType === "ci" ? (STATION_ANGLES[view.slotIndex] ?? 0) : 0}
           stationNumber={view.slotIndex + 1}
           stationCount={activeChannels.length}
           channelName={activeChannels[view.slotIndex]?.name ?? ""}
