@@ -119,7 +119,7 @@ export type SimulationOutcome = {
 export type CoachingLevel = "info" | "warning" | "success";
 
 export type CoachingMessage = {
-  id: string;
+  id: "impression-heavy" | "impression-light" | "drying-risk" | "registration-offset" | "press-ready";
   level: CoachingLevel;
   text: string;
 };

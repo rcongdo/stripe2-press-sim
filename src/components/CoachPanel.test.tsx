@@ -43,6 +43,11 @@ describe("CoachPanel", () => {
     expect(screen.getByText(/No active warnings/)).toBeInTheDocument();
   });
 
+  it("shows no-warnings message in practice mode", () => {
+    wrap(<CoachPanel {...makeProps({ mode: "practice" })} />);
+    expect(screen.getByText(/Hints are hidden/)).toBeInTheDocument();
+  });
+
   it("renders coaching message text via locale lookup by id", () => {
     const messages = [
       { id: "impression-heavy" as const, level: "warning" as const, text: "fallback text not shown" },
