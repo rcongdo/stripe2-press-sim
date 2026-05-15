@@ -28,22 +28,23 @@ export async function extractSeparations(file: File): Promise<ExtractedLayers> {
 
   const images: Record<string, ImageBitmap> = {};
 
-  for (const name of separationNames) {
+  // PDF with every Separation ink blanked — leaves only raw DeviceCMYK image content.
+  // Used as the "background" reference for both separation extraction and CMYK decomp.
+  const cmykOnlyBytes = separationNames.length > 0
+    ? await rewriteTintFunctions(buffer, "")
+    : new Uint8Array(buffer);
+
+  if (separationNames.length > 0) {
     try {
-      const modifiedBytes = await rewriteTintFunctions(buffer, name);
-      images[name] = await renderFirstPage(modifiedBytes);
+      const sepImages = await renderSeparationChannels(buffer, cmykOnlyBytes, separationNames);
+      Object.assign(images, sepImages);
     } catch (e) {
-      console.warn(`Failed to render colorant "${name}":`, e);
+      console.warn("Failed to render separation channels:", e);
     }
   }
 
   if (cmykNames.length > 0) {
     try {
-      // Hide all separation inks so only DeviceCMYK content remains in the render.
-      // Without this, spot-ink pixels contaminate the CMYK reverse-decomposition.
-      const cmykOnlyBytes = separationNames.length > 0
-        ? await rewriteTintFunctions(buffer, "")   // "" matches no ink → all separations → white
-        : new Uint8Array(buffer);
       const cmykImages = await renderCmykChannels(cmykOnlyBytes, cmykNames);
       Object.assign(images, cmykImages);
     } catch (e) {
@@ -255,11 +256,12 @@ async function renderCmykChannels(
     const h = Math.round(viewport.height);
 
     const composite = new OffscreenCanvas(w, h);
-    const ctx = composite.getContext("2d") as unknown as CanvasRenderingContext2D;
-    await page.render({ canvas: null, canvasContext: ctx, viewport }).promise;
+    const compositeCtx = composite.getContext("2d") as unknown as OffscreenCanvasRenderingContext2D;
+    compositeCtx.fillStyle = "#ffffff";
+    compositeCtx.fillRect(0, 0, w, h);
+    await page.render({ canvas: null, canvasContext: compositeCtx as unknown as CanvasRenderingContext2D, viewport }).promise;
 
-    const rgbaData = (composite.getContext("2d") as unknown as OffscreenCanvasRenderingContext2D)
-      .getImageData(0, 0, w, h).data;
+    const rgbaData = compositeCtx.getImageData(0, 0, w, h).data;
 
     type ChannelDef = { idx: number; cr: number; cg: number; cb: number };
     const channelDefs: Record<string, ChannelDef> = {
@@ -310,19 +312,74 @@ async function renderCmykChannels(
   }
 }
 
-async function renderFirstPage(bytes: Uint8Array): Promise<ImageBitmap> {
+// Render the first page of a PDF to an RGBA pixel array on a white background.
+async function renderPageRgba(
+  bytes: Uint8Array | ArrayBuffer,
+): Promise<{ w: number; h: number; data: Uint8ClampedArray }> {
   const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
   try {
     const page = await pdf.getPage(1);
     const viewport = page.getViewport({ scale: 1 });
-
-    const canvas = new OffscreenCanvas(Math.round(viewport.width), Math.round(viewport.height));
-    const ctx = canvas.getContext("2d") as unknown as CanvasRenderingContext2D;
-    await page.render({ canvas: null, canvasContext: ctx, viewport }).promise;
-    return createImageBitmap(canvas);
+    const w = Math.round(viewport.width);
+    const h = Math.round(viewport.height);
+    const canvas = new OffscreenCanvas(w, h);
+    const offCtx = canvas.getContext("2d") as unknown as OffscreenCanvasRenderingContext2D;
+    // White substrate — prevents transparent canvas pixels from reading as (0,0,0)
+    // which would otherwise produce spurious K ink in the CMYK decomposition.
+    offCtx.fillStyle = "#ffffff";
+    offCtx.fillRect(0, 0, w, h);
+    await page.render({ canvas: null, canvasContext: offCtx as unknown as CanvasRenderingContext2D, viewport }).promise;
+    return { w, h, data: offCtx.getImageData(0, 0, w, h).data };
   } finally {
     await pdf.destroy();
   }
+}
+
+// For each Separation colorant, extract its ink coverage by rendering the page
+// twice — once with the ink active and once with all inks blanked — and computing:
+//   coverage = 1 − (luminance_with_ink / luminance_background)
+// This cancels out any DeviceCMYK image content that can't be suppressed via
+// tint-function rewriting, leaving only the separation's own contribution.
+async function renderSeparationChannels(
+  buffer: ArrayBuffer,
+  cmykOnlyBytes: Uint8Array,
+  separationNames: string[],
+): Promise<Record<string, ImageBitmap>> {
+  // Background render: all separations white, only DeviceCMYK images visible
+  const bg = await renderPageRgba(cmykOnlyBytes);
+
+  const result: Record<string, ImageBitmap> = {};
+
+  for (const name of separationNames) {
+    try {
+      const withBytes = await rewriteTintFunctions(buffer, name);
+      const sep = await renderPageRgba(withBytes);
+
+      const channelCanvas = new OffscreenCanvas(bg.w, bg.h);
+      const channelCtx = channelCanvas.getContext("2d") as unknown as OffscreenCanvasRenderingContext2D;
+      const channelData = channelCtx.createImageData(bg.w, bg.h);
+
+      for (let i = 0; i < bg.data.length; i += 4) {
+        const bgLum  = (bg.data[i] + bg.data[i + 1] + bg.data[i + 2]) / 3;
+        const sepLum = (sep.data[i] + sep.data[i + 1] + sep.data[i + 2]) / 3;
+        // bgLum is always ≥1 because we filled white first.
+        // coverage > 0 means the ink darkened this pixel versus the CMYK background.
+        const coverage = Math.max(0, 1 - sepLum / Math.max(1, bgLum));
+        const v = Math.round(255 * (1 - coverage));
+        channelData.data[i]     = v;
+        channelData.data[i + 1] = v;
+        channelData.data[i + 2] = v;
+        channelData.data[i + 3] = 255;
+      }
+
+      channelCtx.putImageData(channelData, 0, 0);
+      result[name] = await createImageBitmap(channelCanvas);
+    } catch (e) {
+      console.warn(`Failed to render separation "${name}":`, e);
+    }
+  }
+
+  return result;
 }
 
 function decodeColorantName(encoded: string): string {
