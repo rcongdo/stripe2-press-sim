@@ -149,7 +149,7 @@ export function ControlPanel({
             <div className="control" key={key}>
               <span>
                 <span className="control-label-row">
-                  <label htmlFor={inputId}>{range.label}</label>
+                  <label htmlFor={inputId}>{t.channelSettings.labels[key as keyof typeof t.channelSettings.labels]}</label>
                   {guided && t.channelSettings.tips[key as keyof typeof t.channelSettings.tips] && (
                     <InfoTip text={t.channelSettings.tips[key as keyof typeof t.channelSettings.tips]!} />
                   )}
@@ -158,7 +158,7 @@ export function ControlPanel({
               </span>
               <input id={inputId} type="range" min={range.min} max={range.max} step={range.step}
                 value={settings.inkChannels[inkCh]?.[key] ?? range.min}
-                aria-label={range.label}
+                aria-label={t.channelSettings.labels[key as keyof typeof t.channelSettings.labels]}
                 onChange={e => onInkChannelChange(inkCh, key, Number(e.target.value))} />
             </div>
           );
