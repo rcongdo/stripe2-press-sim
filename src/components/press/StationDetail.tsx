@@ -2,7 +2,7 @@
 import { useEffect, useRef } from "react";
 import type { ChannelDef, JobPreset, PressSettings, SimulationOutcome } from "../../domain/types";
 import type { PressMode } from "../PressModel";
-import { PRESS_EDUCATION } from "./pressEducation";
+import { useLocale } from "../../i18n/LocaleContext";
 
 type Props = {
   job: JobPreset;
@@ -59,6 +59,7 @@ function drawFrame(
   dripT: number,
   mode: PressMode,
   dryingRisk: number,
+  plateLabel: string,
 ) {
   const s = SD_SCALE;
   ctx.clearRect(0, 0, SD_W * s, SD_H * s);
@@ -116,7 +117,7 @@ function drawFrame(
   ctx.font = `bold ${10 * s}px Inter, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("Plate", 0, 0);
+  ctx.fillText(plateLabel, 0, 0);
   ctx.restore();
 
   // ── Anilox roll ──────────────────────────────────────────────────────────────
@@ -209,13 +210,6 @@ type CalloutDef = {
   y: number;
 };
 
-const OPERATE_CALLOUTS: CalloutDef[] = [
-  { key: "anilox",     label: "Anilox",     x: 310, y: 180 },
-  { key: "viscosity",  label: "Viscosity",  x: 20,  y: 180 },
-  { key: "impression", label: "Impression", x: 20,  y: 260 },
-  { key: "strength",   label: "Strength",   x: 310, y: 260 },
-];
-
 const LEARN_LABELS: { key: string; educationKey: string; x: number; y: number }[] = [
   { key: "inkChamber",       educationKey: "inkChamber",       x: 310, y: 180 },
   { key: "doctorBlade",      educationKey: "doctorBlade",      x: 310, y: 260 },
@@ -233,6 +227,15 @@ export function StationDetail({ job, settings, outcome, mode, channelId, station
 
   const ch = job.channels.find(c => c.id === channelId) ?? job.channels[0];
   const inkSettings = settings.inkChannels[channelId];
+
+  const { t } = useLocale();
+
+  const operateCallouts = [
+    { key: "anilox",     label: t.stationLabels.anilox,     x: 310, y: 180 },
+    { key: "viscosity",  label: t.stationLabels.viscosity,  x: 20,  y: 180 },
+    { key: "impression", label: t.stationLabels.impression, x: 20,  y: 260 },
+    { key: "strength",   label: t.stationLabels.strength,   x: 310, y: 260 },
+  ];
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -255,13 +258,14 @@ export function StationDetail({ job, settings, outcome, mode, channelId, station
         dripTRef.current,
         mode,
         outcome.dryingRisk,
+        t.stationLabels.plate,
       );
       frameRef.current = requestAnimationFrame(tick);
     }
 
     frameRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frameRef.current);
-  }, [ch, inkSettings, stationAngle, mode, outcome.dryingRisk]);
+  }, [ch, inkSettings, stationAngle, mode, outcome.dryingRisk, t]);
 
   return (
     <div className="station-detail" data-testid="station-detail" style={{ position: "relative" }}>
@@ -287,7 +291,7 @@ export function StationDetail({ job, settings, outcome, mode, channelId, station
           style={{ width: SD_W, height: SD_H }}
         />
 
-        {mode === "operate" && OPERATE_CALLOUTS.map(c => {
+        {mode === "operate" && operateCallouts.map(c => {
           let value = "";
           if (c.key === "anilox")     value = `${inkSettings?.aniloxVolume ?? "—"} BCM`;
           if (c.key === "viscosity")  value = `${inkSettings?.viscosity ?? "—"} s`;
@@ -314,9 +318,9 @@ export function StationDetail({ job, settings, outcome, mode, channelId, station
             style={{ top: l.y, left: l.x }}
           >
             <span className="callout-name">
-              {PRESS_EDUCATION[l.educationKey]?.name ?? l.key}
+              {t.education[l.educationKey as keyof typeof t.education]?.name ?? l.key}
             </span>
-            {PRESS_EDUCATION[l.educationKey]?.description}
+            {t.education[l.educationKey as keyof typeof t.education]?.description}
           </div>
         ))}
       </div>

@@ -1,8 +1,10 @@
 // src/components/press/StationDetail.test.tsx
+import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { snackPouchJob } from "../../domain/jobs";
 import { createInitialSettings } from "../../domain/settings";
+import { LocaleProvider } from "../../i18n/LocaleContext";
 import { StationDetail } from "./StationDetail";
 
 function makeProps(overrides = {}) {
@@ -30,21 +32,25 @@ function makeProps(overrides = {}) {
   };
 }
 
+function wrap(ui: React.ReactElement) {
+  return render(<LocaleProvider>{ui}</LocaleProvider>);
+}
+
 describe("StationDetail", () => {
   it("renders a canvas element", () => {
-    const { container } = render(<StationDetail {...makeProps()} />);
+    const { container } = wrap(<StationDetail {...makeProps()} />);
     expect(container.querySelector("canvas")).toBeInTheDocument();
   });
 
   it("fires onBack when back button is clicked", () => {
     const onBack = vi.fn();
-    render(<StationDetail {...makeProps({ onBack })} />);
+    wrap(<StationDetail {...makeProps({ onBack })} />);
     fireEvent.click(screen.getByRole("button", { name: /back to press/i }));
     expect(onBack).toHaveBeenCalled();
   });
 
   it("shows operate mode callout labels", () => {
-    render(<StationDetail {...makeProps()} />);
+    wrap(<StationDetail {...makeProps()} />);
     expect(screen.getByTestId("callout-anilox")).toBeInTheDocument();
     expect(screen.getByTestId("callout-viscosity")).toBeInTheDocument();
     expect(screen.getByTestId("callout-impression")).toBeInTheDocument();
@@ -52,13 +58,13 @@ describe("StationDetail", () => {
   });
 
   it("callout shows correct anilox BCM value from settings", () => {
-    render(<StationDetail {...makeProps()} />);
+    wrap(<StationDetail {...makeProps()} />);
     const callout = screen.getByTestId("callout-anilox");
     expect(callout.textContent).toContain("4.5");
   });
 
   it("shows learn mode component labels instead of callouts", () => {
-    render(<StationDetail {...makeProps({ mode: "learn" })} />);
+    wrap(<StationDetail {...makeProps({ mode: "learn" })} />);
     expect(screen.getByTestId("learn-label-aniloxRoll")).toBeInTheDocument();
     expect(screen.getByTestId("learn-label-plateCylinder")).toBeInTheDocument();
     expect(screen.getByTestId("learn-label-inkChamber")).toBeInTheDocument();
