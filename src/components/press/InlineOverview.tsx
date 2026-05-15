@@ -200,12 +200,6 @@ export function InlineOverview({ job, settings, outcome, mode, selectedChannelId
 
   return (
     <div data-testid="press-overview" style={{ position: "relative" }}>
-      {mode === "learn" && tooltipEdu && (
-        <div className="learn-tooltip" style={{ position: "static", marginBottom: 8 }}>
-          <div className="learn-tooltip__name">{tooltipEdu.name}</div>
-          {tooltipEdu.description}
-        </div>
-      )}
       <svg
         viewBox={`0 0 ${SVG_W} ${SVG_H}`}
         width="100%"
@@ -260,6 +254,12 @@ export function InlineOverview({ job, settings, outcome, mode, selectedChannelId
         )}
 
       </svg>
+      {mode === "learn" && tooltipEdu && (
+        <div className="learn-tooltip" style={{ top: 8, left: 8 }}>
+          <div className="learn-tooltip__name">{tooltipEdu.name}</div>
+          {tooltipEdu.description}
+        </div>
+      )}
     </div>
   );
 }

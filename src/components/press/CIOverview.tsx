@@ -78,16 +78,6 @@ export function CIOverview({ job, settings, outcome, mode, selectedChannelId, on
 
   return (
     <div className="press-overview" data-testid="press-overview" style={{ position: "relative" }}>
-      {tooltip && t.education[tooltip.key as keyof typeof t.education] && (
-        <div
-          className="learn-tooltip"
-          style={{ position: "static", marginBottom: 8, pointerEvents: "auto", cursor: "pointer" }}
-          onClick={() => setTooltip(null)}
-        >
-          <div className="learn-tooltip__name">{t.education[tooltip.key as keyof typeof t.education].name}</div>
-          {t.education[tooltip.key as keyof typeof t.education].description}
-        </div>
-      )}
       <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} xmlns="http://www.w3.org/2000/svg">
         {/* Dark background */}
         <rect x="0" y="0" width={SVG_W} height={SVG_H} fill="#1a1a2e" rx="8" />
@@ -208,6 +198,12 @@ export function CIOverview({ job, settings, outcome, mode, selectedChannelId, on
           </marker>
         </defs>
       </svg>
+      {tooltip && t.education[tooltip.key as keyof typeof t.education] && (
+        <div className="learn-tooltip" style={{ top: 8, left: 8 }}>
+          <div className="learn-tooltip__name">{t.education[tooltip.key as keyof typeof t.education].name}</div>
+          {t.education[tooltip.key as keyof typeof t.education].description}
+        </div>
+      )}
     </div>
   );
 }
