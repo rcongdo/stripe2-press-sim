@@ -2,6 +2,7 @@ import { within, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { snackPouchJob } from "../domain/jobs";
 import { activateSpotChannel, createInitialSettings, deactivateSpotChannel } from "../domain/settings";
+import { LocaleProvider } from "../i18n/LocaleContext";
 import { ControlPanel } from "./ControlPanel";
 
 function makeProps(overrides: Partial<Parameters<typeof ControlPanel>[0]> = {}) {
@@ -16,9 +17,13 @@ function makeProps(overrides: Partial<Parameters<typeof ControlPanel>[0]> = {}) 
   };
 }
 
+function wrap(ui: React.ReactElement) {
+  return render(<LocaleProvider>{ui}</LocaleProvider>);
+}
+
 describe("ControlPanel — anilox dropdown", () => {
   it("renders an anilox roll select in the ink section", () => {
-    render(<ControlPanel {...makeProps()} />);
+    wrap(<ControlPanel {...makeProps()} />);
     expect(screen.getByLabelText("Anilox roll")).toBeInTheDocument();
     expect(screen.queryByLabelText("Anilox volume")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Anilox line screen")).not.toBeInTheDocument();
@@ -26,7 +31,7 @@ describe("ControlPanel — anilox dropdown", () => {
 
   it("calls onInkChannelChange with channel C and aniloxVolume when selection changes", () => {
     const onInkChannelChange = vi.fn();
-    render(<ControlPanel {...makeProps({ onInkChannelChange })} />);
+    wrap(<ControlPanel {...makeProps({ onInkChannelChange })} />);
     fireEvent.change(screen.getByLabelText("Anilox roll"), {
       target: { value: "standard" },
     });
@@ -36,7 +41,7 @@ describe("ControlPanel — anilox dropdown", () => {
 
 describe("ControlPanel — registration dpad", () => {
   it("renders a single color selector group with dpad buttons and no separate registration sliders", () => {
-    render(<ControlPanel {...makeProps()} />);
+    wrap(<ControlPanel {...makeProps()} />);
     const inkGroup = screen.getByRole("group", { name: "Ink color" });
     expect(within(inkGroup).getByRole("button", { name: /cyan/i })).toBeInTheDocument();
     expect(within(inkGroup).getByRole("button", { name: /magenta/i })).toBeInTheDocument();
@@ -47,7 +52,7 @@ describe("ControlPanel — registration dpad", () => {
 
   it("nudges selected color X by +0.1 when right arrow is clicked", () => {
     const onRegistrationChange = vi.fn();
-    render(<ControlPanel {...makeProps({ onRegistrationChange })} />);
+    wrap(<ControlPanel {...makeProps({ onRegistrationChange })} />);
     const inkGroup = screen.getByRole("group", { name: "Ink color" });
     fireEvent.click(within(inkGroup).getByRole("button", { name: /cyan/i }));
     fireEvent.click(screen.getByRole("button", { name: /right/i }));
@@ -59,7 +64,7 @@ describe("ControlPanel — registration dpad", () => {
 
   it("nudges selected color Y by -0.1 when up arrow is clicked", () => {
     const onRegistrationChange = vi.fn();
-    render(<ControlPanel {...makeProps({ onRegistrationChange })} />);
+    wrap(<ControlPanel {...makeProps({ onRegistrationChange })} />);
     const inkGroup = screen.getByRole("group", { name: "Ink color" });
     fireEvent.click(within(inkGroup).getByRole("button", { name: /cyan/i }));
     fireEvent.click(screen.getByRole("button", { name: /up/i }));
@@ -71,7 +76,7 @@ describe("ControlPanel — registration dpad", () => {
 
   it("routes nudge to the correct key when a non-default color is selected", () => {
     const onRegistrationChange = vi.fn();
-    render(<ControlPanel {...makeProps({ onRegistrationChange })} />);
+    wrap(<ControlPanel {...makeProps({ onRegistrationChange })} />);
     const inkGroup = screen.getByRole("group", { name: "Ink color" });
     fireEvent.click(within(inkGroup).getByRole("button", { name: /magenta/i }));
     fireEvent.click(screen.getByRole("button", { name: /right/i }));
@@ -83,7 +88,7 @@ describe("ControlPanel — registration dpad", () => {
 
   it("clamps registration nudge at ±4 mil", () => {
     const onRegistrationChange = vi.fn();
-    render(
+    wrap(
       <ControlPanel
         {...makeProps({
           settings: {
@@ -101,7 +106,7 @@ describe("ControlPanel — registration dpad", () => {
 
 describe("ControlPanel — ink sliders", () => {
   it("renders sliders for viscosity, strength, and impression", () => {
-    render(<ControlPanel {...makeProps()} />);
+    wrap(<ControlPanel {...makeProps()} />);
     expect(screen.getByRole("slider", { name: /viscosity/i })).toBeInTheDocument();
     expect(screen.getByRole("slider", { name: /strength/i })).toBeInTheDocument();
     expect(screen.getByRole("slider", { name: /impression/i })).toBeInTheDocument();
@@ -109,7 +114,7 @@ describe("ControlPanel — ink sliders", () => {
 
   it("fires onInkChannelChange with channel C and correct key on slider change", () => {
     const onInkChannelChange = vi.fn();
-    render(<ControlPanel {...makeProps({ onInkChannelChange })} />);
+    wrap(<ControlPanel {...makeProps({ onInkChannelChange })} />);
     fireEvent.change(screen.getByRole("slider", { name: /viscosity/i }), {
       target: { value: "35" },
     });
@@ -118,7 +123,7 @@ describe("ControlPanel — ink sliders", () => {
 
   it("switching color changes the channel fired by onInkChannelChange", () => {
     const onInkChannelChange = vi.fn();
-    render(<ControlPanel {...makeProps({ onInkChannelChange })} />);
+    wrap(<ControlPanel {...makeProps({ onInkChannelChange })} />);
     const inkGroup = screen.getByRole("group", { name: "Ink color" });
     fireEvent.click(within(inkGroup).getByRole("button", { name: /magenta/i }));
     fireEvent.change(screen.getByRole("slider", { name: /impression/i }), {
@@ -131,21 +136,21 @@ describe("ControlPanel — ink sliders", () => {
 describe("ControlPanel — spot channels", () => {
   it("shows Add button for a deactivated spot channel", () => {
     const settings = deactivateSpotChannel(createInitialSettings(snackPouchJob), "orange");
-    render(<ControlPanel {...makeProps({ settings })} />);
+    wrap(<ControlPanel {...makeProps({ settings })} />);
     expect(screen.getByRole("button", { name: /add pantone 021 orange/i })).toBeInTheDocument();
   });
 
   it("calls onSpotChannelToggle(channelId, true) when Add is clicked", () => {
     const onSpotChannelToggle = vi.fn();
     const settings = deactivateSpotChannel(createInitialSettings(snackPouchJob), "orange");
-    render(<ControlPanel {...makeProps({ settings, onSpotChannelToggle })} />);
+    wrap(<ControlPanel {...makeProps({ settings, onSpotChannelToggle })} />);
     fireEvent.click(screen.getByRole("button", { name: /add pantone 021 orange/i }));
     expect(onSpotChannelToggle).toHaveBeenCalledWith("orange", true);
   });
 
   it("shows Remove button for an active spot channel", () => {
     const settings = activateSpotChannel(snackPouchJob, createInitialSettings(snackPouchJob), "orange");
-    render(<ControlPanel {...makeProps({ settings })} />);
+    wrap(<ControlPanel {...makeProps({ settings })} />);
     expect(screen.getByRole("button", { name: /remove pantone 021 orange/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /add pantone 021 orange/i })).not.toBeInTheDocument();
   });
@@ -153,7 +158,7 @@ describe("ControlPanel — spot channels", () => {
   it("calls onSpotChannelToggle(channelId, false) when Remove is clicked", () => {
     const onSpotChannelToggle = vi.fn();
     const settings = activateSpotChannel(snackPouchJob, createInitialSettings(snackPouchJob), "orange");
-    render(<ControlPanel {...makeProps({ settings, onSpotChannelToggle })} />);
+    wrap(<ControlPanel {...makeProps({ settings, onSpotChannelToggle })} />);
     fireEvent.click(screen.getByRole("button", { name: /remove pantone 021 orange/i }));
     expect(onSpotChannelToggle).toHaveBeenCalledWith("orange", false);
   });

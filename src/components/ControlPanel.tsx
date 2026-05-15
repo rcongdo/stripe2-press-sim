@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { aniloxPresets } from "../domain/jobs";
+import { useLocale } from "../i18n/LocaleContext";
 import type { TrainingMode } from "../simulation/scoring";
 import type {
   ChannelId,
@@ -21,14 +22,6 @@ type ControlPanelProps = {
 };
 
 const inkSliderKeys: InkChannelSettingKey[] = ["viscosity", "strength", "impression"];
-
-const TIPS: Partial<Record<InkChannelSettingKey | "aniloxRoll" | "registration", string>> = {
-  aniloxRoll: "The anilox is an engraved roller that meters a precise ink volume. A lighter cell (lower BCM) deposits less ink for fine work; a heavier cell floods more for solid coverage.",
-  viscosity: "Ink viscosity controls flow. Lower viscosity inks transfer more readily and level out, improving dot smoothness. Higher viscosity keeps ink from flowing, preserving sharp detail on fine screens.",
-  strength: "Pigment concentration. Higher strength gives rich color at lighter film weights; lower strength produces paler results that may need heavier ink deposits to hit density targets.",
-  impression: "How hard the plate presses into the substrate. Too little gives weak, incomplete transfer; too much squeezes dots (dot gain), bridges highlights, and accelerates plate wear.",
-  registration: "Aligns each color plate so all channels overprint correctly. Misregistration shows as color fringing along edges. Nudge the selected channel 0.1 mil per tap; aim for all channels within ±0.5 mil.",
-};
 
 function InfoTip({ text }: { text: string }) {
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -56,6 +49,7 @@ export function ControlPanel({
   onChannelSelect, selectedChannelId,
 }: ControlPanelProps) {
   const guided = mode === "guided";
+  const { t } = useLocale();
 
   const firstActive = job.channels.find(ch => ch.id in settings.inkChannels);
   const [selectedId, setSelectedId] = useState<ChannelId>(firstActive?.id ?? "C");
@@ -99,7 +93,7 @@ export function ControlPanel({
       <div className="control-group">
         <h3>Ink</h3>
 
-        <div className="reg-colors" role="group" aria-label="Ink color">
+        <div className="reg-colors" role="group" aria-label={t.channelSettings.inkColor}>
           {activeChannels.map(ch => (
             <button
               key={ch.id}
@@ -136,8 +130,8 @@ export function ControlPanel({
 
         <div className="control anilox-select">
           <span className="control-label-row">
-            <label htmlFor="anilox-channel-select">Anilox roll</label>
-            {guided && <InfoTip text={TIPS.aniloxRoll!} />}
+            <label htmlFor="anilox-channel-select">{t.channelSettings.aniloxRoll}</label>
+            {guided && <InfoTip text={t.channelSettings.tips.aniloxRoll} />}
           </span>
           <select id="anilox-channel-select" value={inkCurrentPreset.id}
             onChange={e => {
@@ -156,7 +150,9 @@ export function ControlPanel({
               <span>
                 <span className="control-label-row">
                   <label htmlFor={inputId}>{range.label}</label>
-                  {guided && TIPS[key] && <InfoTip text={TIPS[key]!} />}
+                  {guided && t.channelSettings.tips[key as keyof typeof t.channelSettings.tips] && (
+                    <InfoTip text={t.channelSettings.tips[key as keyof typeof t.channelSettings.tips]!} />
+                  )}
                 </span>
                 <strong>{settings.inkChannels[inkCh]?.[key]} {range.unit}</strong>
               </span>
@@ -171,7 +167,7 @@ export function ControlPanel({
         <div className="reg-readout">
           <span>X: <strong>{reg.x.toFixed(1)} mil</strong></span>
           <span>Y: <strong>{reg.y.toFixed(1)} mil</strong></span>
-          {guided && <InfoTip text={TIPS.registration!} />}
+          {guided && <InfoTip text={t.channelSettings.tips.registration} />}
         </div>
         <div className="reg-dpad">
           <button type="button" className="reg-dpad__btn" aria-label="up"    onClick={() => nudge("y", -0.1)}>↑</button>
