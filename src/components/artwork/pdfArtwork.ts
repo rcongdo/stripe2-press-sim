@@ -42,6 +42,11 @@ export function createPdfDrawChannel(
     } else {
       ctx.globalAlpha = Math.min(1, Math.max(0.05, densityScale));
       ctx.drawImage(img, regX, regY, W_CANVAS, H_CANVAS);
+      // Over-impression gain: simulate ink spread/darkening at 1x
+      if (gain > 0) {
+        ctx.globalAlpha = Math.min(0.25, gain * 1.2);
+        ctx.fillRect(regX, regY, W_CANVAS, H_CANVAS);
+      }
     }
 
     ctx.restore();

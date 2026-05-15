@@ -270,6 +270,12 @@ export function drawSnackPouchChannel(
 
   applyTextKnockout(ctx, pouchX);
 
+  // Over-impression gain: simulate ink spread/darkening at 1x
+  if (!showDots && gain > 0) {
+    ctx.globalAlpha = Math.min(0.25, gain * 1.2);
+    ctx.fillRect(pouchX, POUCH_TOP, POUCH_W, POUCH_H);
+  }
+
   ctx.restore();
   ctx.restore();
 }
